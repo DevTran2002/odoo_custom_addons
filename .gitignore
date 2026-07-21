@@ -1,0 +1,31 @@
+# File biên dịch và bộ nhớ tạm của Python
+*.py[cod]
+*$py.class
+__pycache__/
+*.so
+
+# File nhật ký log và bộ nhớ đệm
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Môi trường ảo và cấu hình cục bộ
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Thư mục và file tạm của Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# File dump dữ liệu Odoo
+*.dump
+*.pot

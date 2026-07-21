@@ -1,7 +1,6 @@
 # Tệp cấu hình luồng CI/CD tự động chạy khi merge vào nhánh production
 name: Deploy Custom Addons Production CI/CD
 
-# Chỉ kích hoạt khi có sự kiện Push hoặc Merge vào nhánh 'production'
 on:
   push:
     branches:
@@ -11,11 +10,9 @@ jobs:
   deploy-addons:
     runs-on: self-hosted
     steps:
-      # Bước 1: Lấy mã nguồn mới nhất của nhánh production từ GitHub
       - name: Checkout mã nguồn
         uses: actions/checkout@v4
 
-      # Bước 2: Khởi chạy lại Docker Container Odoo để nhận mã nguồn mới
       - name: Khởi chạy lại Docker Container Odoo
         shell: powershell
         run: |
