@@ -13,9 +13,9 @@ class TestHrPayrollCancel(common.TransactionCase):
         super().setUp()
         # Set system parameter
         self.env["ir.config_parameter"].sudo().set_param(
-            "payroll.allow_cancel_payslips", True
+            "th_payroll_ce.allow_cancel_payslips", True
         )
-        self.payslip_action_id = self.ref("payroll.hr_payslip_menu")
+        self.payslip_action_id = self.ref("th_payroll_ce.hr_payslip_menu")
         self.res_partner_bank = self.env["res.partner.bank"].create(
             {
                 "acc_number": "001-9876543-21",

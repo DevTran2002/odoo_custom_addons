@@ -412,6 +412,6 @@
         id="hr_payslip_menu"
         action="hr_payslip_action"
         parent="payroll_menu_root"
-        groups="payroll.group_payroll_user"
+        groups="th_payroll_ce.group_payroll_user"
     />
 </odoo>

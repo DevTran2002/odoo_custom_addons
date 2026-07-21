@@ -52,8 +52,8 @@ class TestPayslipFlow(TestPayslipBase):
             active_model="ir.ui.menu",
             department_id=False,
             section_id=False,
-            active_ids=[self.ref("payroll.hr_payslip_menu")],
-            active_id=self.ref("payroll.hr_payslip_menu"),
+            active_ids=[self.ref("th_payroll_ce.hr_payslip_menu")],
+            active_id=self.ref("th_payroll_ce.hr_payslip_menu"),
         ).compute_sheet()
 
         # Check child rules shown in table by default
@@ -147,16 +147,16 @@ class TestPayslipFlow(TestPayslipBase):
 
         # I print the payslip report
         data, data_format = self.env.ref(
-            "payroll.action_report_payslip"
+            "th_payroll_ce.action_report_payslip"
         )._render_qweb_pdf(
-            self.env.ref("payroll.action_report_payslip"), res_ids=richard_payslip.ids
+            self.env.ref("th_payroll_ce.action_report_payslip"), res_ids=richard_payslip.ids
         )
 
         # I print the payslip details report
         data, data_format = self.env.ref(
-            "payroll.payslip_details_report"
+            "th_payroll_ce.payslip_details_report"
         )._render_qweb_pdf(
-            self.env.ref("payroll.payslip_details_report"), res_ids=richard_payslip.ids
+            self.env.ref("th_payroll_ce.payslip_details_report"), res_ids=richard_payslip.ids
         )
 
         # I print the contribution register report
@@ -175,7 +175,7 @@ class TestPayslipFlow(TestPayslipBase):
     def test_contract_qty(self):
         # I set the test rule to detect contract count
         self.test_rule.amount_python_compute = (
-            "result = payroll.contracts and payroll.contracts.count or -1.0"
+            "result = th_payroll_ce.contracts and th_payroll_ce.contracts.count or -1.0"
         )
         self.developer_pay_structure.write({"rule_ids": [(4, self.test_rule.id)]})
 

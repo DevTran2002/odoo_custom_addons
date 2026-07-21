@@ -9,7 +9,7 @@ from odoo.exceptions import UserError
 
 
 class ContributionRegisterReport(models.AbstractModel):
-    _name = "report.payroll.report_contributionregister"
+    _name = "report.th_payroll_ce.report_contributionregister"
     _description = "Payroll Contribution Register Report"
 
     def _get_payslip_lines(self, register_ids, date_from, date_to):

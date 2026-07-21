@@ -24,6 +24,6 @@ class PayslipLinesContributionRegister(models.TransientModel):
             "model": "hr.contribution.register",
             "form": self.read()[0],
         }
-        return self.env.ref("payroll.action_contribution_register").report_action(
+        return self.env.ref("th_payroll_ce.action_contribution_register").report_action(
             [], data=datas
         )

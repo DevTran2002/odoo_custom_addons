@@ -12,7 +12,7 @@ class HrContract(models.Model):
     _inherit = "hr.contract"
     _description = "Employee Contract"
 
-    struct_id = fields.Many2one("hr.payroll.structure", string="Salary Structure")
+    struct_id = fields.Many2one("hr.th_payroll_ce.structure", string="Salary Structure")
     schedule_pay = fields.Selection(
         [
             ("monthly", "Monthly"),

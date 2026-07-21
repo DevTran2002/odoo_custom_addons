@@ -31,7 +31,7 @@ class HrPayslip(models.Model):
     _order = "id desc"
 
     struct_id = fields.Many2one(
-        "hr.payroll.structure",
+        "hr.th_payroll_ce.structure",
         string="Structure",
         readonly=True,
         states={"draft": [("readonly", False)]},
@@ -179,14 +179,14 @@ class HrPayslip(models.Model):
         self.allow_cancel_payslips = (
             self.env["ir.config_parameter"]
             .sudo()
-            .get_param("payroll.allow_cancel_payslips")
+            .get_param("th_payroll_ce.allow_cancel_payslips")
         )
 
     def _compute_prevent_compute_on_confirm(self):
         self.prevent_compute_on_confirm = (
             self.env["ir.config_parameter"]
             .sudo()
-            .get_param("payroll.prevent_compute_on_confirm")
+            .get_param("th_payroll_ce.prevent_compute_on_confirm")
         )
 
     @api.depends("line_ids", "hide_child_lines", "hide_invisible_lines")
@@ -256,8 +256,8 @@ class HrPayslip(models.Model):
             copied_payslip.with_context(
                 without_compute_sheet=True
             ).action_payslip_done()
-        formview_ref = self.env.ref("payroll.hr_payslip_view_form", False)
-        treeview_ref = self.env.ref("payroll.hr_payslip_view_tree", False)
+        formview_ref = self.env.ref("th_payroll_ce.hr_payslip_view_form", False)
+        treeview_ref = self.env.ref("th_payroll_ce.hr_payslip_view_tree", False)
         res = {
             "name": _("Refund Payslip"),
             "view_mode": "tree, form",
@@ -337,7 +337,7 @@ class HrPayslip(models.Model):
         of the payslip. One record per leave type.
         """
         leaves_positive = (
-            self.env["ir.config_parameter"].sudo().get_param("payroll.leaves_positive")
+            self.env["ir.config_parameter"].sudo().get_param("th_payroll_ce.leaves_positive")
         )
         leaves = {}
         calendar = contract.resource_calendar_id
@@ -417,7 +417,7 @@ class HrPayslip(models.Model):
         if current_structure:
             structure_ids = list(set(current_structure._get_parent_structure().ids))
         rule_ids = (
-            self.env["hr.payroll.structure"].browse(structure_ids).get_all_rules()
+            self.env["hr.th_payroll_ce.structure"].browse(structure_ids).get_all_rules()
         )
         sorted_rule_ids = [id for id, sequence in sorted(rule_ids, key=lambda x: x[1])]
         payslip_inputs = (
@@ -443,7 +443,7 @@ class HrPayslip(models.Model):
         """Setup miscellaneous dictionary values.
         Other modules may overload this method to inject discreet values into
         the salary rules. Such values will be available to the salary rule
-        under the `payroll.` prefix.
+        under the `th_payroll_ce.` prefix.
 
         This method is evaluated once per payslip.
         :param contracts: Recordset of all hr.contract records in this payslip
@@ -452,7 +452,7 @@ class HrPayslip(models.Model):
         self.ensure_one()
 
         res = {
-            # In salary rules refer to this as: payroll.contracts.count
+            # In salary rules refer to this as: th_payroll_ce.contracts.count
             "contracts": BaseBrowsableObject(self._init_payroll_dict_contracts()),
         }
         res["contracts"].count = len(contracts)
@@ -534,7 +534,7 @@ class HrPayslip(models.Model):
             else:
                 structure_ids = contracts.get_all_structures()
             rule_ids = (
-                self.env["hr.payroll.structure"].browse(structure_ids).get_all_rules()
+                self.env["hr.th_payroll_ce.structure"].browse(structure_ids).get_all_rules()
             )
             sorted_rule_ids = [
                 id for id, sequence in sorted(rule_ids, key=lambda x: x[1])

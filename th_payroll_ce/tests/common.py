@@ -13,7 +13,7 @@ class TestPayslipBase(TransactionCase):
         self.Contract = self.env["hr.contract"]
         self.ContributionRegister = self.env["hr.contribution.register"]
         self.Department = self.env["hr.department"]
-        self.PayrollStructure = self.env["hr.payroll.structure"]
+        self.PayrollStructure = self.env["hr.th_payroll_ce.structure"]
         self.Payslip = self.env["hr.payslip"]
         self.ResourceCalendar = self.env["resource.calendar"]
         self.RuleInput = self.env["hr.rule.input"]

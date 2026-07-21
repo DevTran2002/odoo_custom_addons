@@ -60,7 +60,7 @@ class HrPayslipRun(models.Model):
         "are refund payslips.",
     )
     struct_id = fields.Many2one(
-        "hr.payroll.structure",
+        "hr.th_payroll_ce.structure",
         string="Structure",
         readonly=True,
         states={"draft": [("readonly", False)]},

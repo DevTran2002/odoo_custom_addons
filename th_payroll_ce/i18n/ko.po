@@ -23,7 +23,7 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 
 #. module: payroll
-#: model:ir.actions.report,print_report_name:payroll.action_report_payslip
+#: model:ir.actions.report,print_report_name:th_payroll_ce.action_report_payslip
 msgid ""
 "\n"
 "            'Payslip - %s' % (object.employee_id.name)\n"
@@ -31,7 +31,7 @@ msgid ""
 msgstr ""
 
 #. module: payroll
-#: model:ir.actions.report,print_report_name:payroll.payslip_details_report
+#: model:ir.actions.report,print_report_name:th_payroll_ce.payslip_details_report
 msgid ""
 "\n"
 "            'Payslip Details - %s' % (object.employee_id.name)\n"
@@ -72,7 +72,7 @@ msgid "%s (copy)"
 msgstr "%s (사본)"
 
 #. module: payroll
-#: model:ir.model.fields,help:payroll.field_hr_payslip__state
+#: model:ir.model.fields,help:th_payroll_ce.field_hr_payslip__state
 msgid ""
 "* When the payslip is created the status is 'Draft'\n"
 "        \n"
@@ -84,7 +84,7 @@ msgid ""
 msgstr ""
 
 #. module: payroll
-#: model:ir.model.fields,help:payroll.field_hr_payslip_change_state__state
+#: model:ir.model.fields,help:th_payroll_ce.field_hr_payslip_change_state__state
 msgid ""
 "* When the payslip is created the status is 'Draft'.             \n"
 "* If the payslip is under verification, the status is 'Compute "
@@ -94,7 +94,7 @@ msgid ""
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>\n"
 "                                            result = contract.wage\n"
@@ -104,7 +104,7 @@ msgid ""
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>\n"
 "                                            result = contract.wage\n"
@@ -113,109 +113,109 @@ msgid ""
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>categories:</code> contains the sum of amount of all rules belonging "
 "to that category"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>contract:</code> contains current contract object data (hr.contract)"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>current_contract:</code> contains values related/calculated for "
 "current contract"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>employee:</code> contains current employee object data (hr.employee)"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid "<code>inputs:</code> contains the computed input data"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid "<code>payroll:</code> contains miscellaneous values related to payroll"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid "<code>payslip:</code> contains current payslip object data (hr.payslip)"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>payslips:</code> contains payslips data (Payslips - Browsable Object)"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid "<code>result = contract.wage * 0.10</code>"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>result:</code> the returned value should be in this variable. It "
 "matches with \"amount\" column."
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>result_name:</code> overrides the current name of the rule and allows "
 "to make dynamic names"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>result_qty:</code> the quantity of units that will be multiplied to "
 "\"result\""
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid "<code>result_rate:</code> the rate that should be applied to \"result\""
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>result_rules:</code> contains the values of previusly computed lines "
 "(qty, rate, amount, total)"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid "<code>rules:</code> contains the rules code (previusly computed)"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid ""
 "<code>tools:</code> contains tools and libraries which help with "
 "mathematical operations"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid "<code>worked_days:</code> contains the computed worked days data"
 msgstr ""
 
 #. module: payroll
-#: model:mail.template,body_html:payroll.mail_template_hr_payslip
+#: model:mail.template,body_html:th_payroll_ce.mail_template_hr_payslip
 msgid ""
 "<div style=\"margin: 0px; padding: 0px;\">\n"
 "        <p style=\"margin: 0px; padding: 0px; font-size: 13px;\">\n"
@@ -233,7 +233,7 @@ msgid ""
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.view_hr_payslip_by_employees
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.view_hr_payslip_by_employees
 msgid ""
 "<span colspan=\"2\" nolabel=\"1\">\n"
 "                            This wizard will generate payslips for all "
@@ -245,24 +245,24 @@ msgid ""
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.hr_salary_rule_view_form
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.hr_salary_rule_view_form
 msgid "<strong> and </strong>"
 msgstr ""
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.report_payslip
-#: model_terms:ir.ui.view,arch_db:payroll.report_payslipdetails
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.report_payslip
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.report_payslipdetails
 msgid "<strong>Address</strong>"
 msgstr "<strong>주소</strong>"
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.report_payslip
-#: model_terms:ir.ui.view,arch_db:payroll.report_payslipdetails
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.report_payslip
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.report_payslipdetails
 msgid "<strong>Authorized signature</strong>"
 msgstr "<strong>승인된 서명</strong>"
 
 #. module: payroll
-#: model_terms:ir.ui.view,arch_db:payroll.report_payslip
+#: model_terms:ir.ui.view,arch_db:th_payroll_ce.report_payslip
 #: model_terms:ir.ui.view,arch_db:payroll.report_payslipdetails
 msgid "<strong>Bank Account</strong>"
 msgstr "<strong>은행 계좌</strong>"

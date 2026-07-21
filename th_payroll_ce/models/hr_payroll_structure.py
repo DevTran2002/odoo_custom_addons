@@ -12,12 +12,12 @@ class HrPayrollStructure(models.Model):
     - Deductions
     """
 
-    _name = "hr.payroll.structure"
+    _name = "hr.th_payroll_ce.structure"
     _description = "Salary Structure"
 
     @api.model
     def _get_parent(self):
-        return self.env.ref("hr_payroll.structure_base", False)
+        return self.env.ref("hr_th_payroll_ce.structure_base", False)
 
     name = fields.Char(required=True)
     code = fields.Char(string="Reference")
@@ -30,10 +30,10 @@ class HrPayrollStructure(models.Model):
     )
     note = fields.Text(string="Description")
     parent_id = fields.Many2one(
-        "hr.payroll.structure", string="Parent", default=_get_parent
+        "hr.th_payroll_ce.structure", string="Parent", default=_get_parent
     )
     children_ids = fields.One2many(
-        "hr.payroll.structure", "parent_id", string="Children", copy=True
+        "hr.th_payroll_ce.structure", "parent_id", string="Children", copy=True
     )
     rule_ids = fields.Many2many(
         "hr.salary.rule",
@@ -52,7 +52,7 @@ class HrPayrollStructure(models.Model):
         require = (
             self.env["ir.config_parameter"]
             .sudo()
-            .get_param("payroll.require_code_and_category")
+            .get_param("th_payroll_ce.require_code_and_category")
         )
         self.require_code = require
         return require

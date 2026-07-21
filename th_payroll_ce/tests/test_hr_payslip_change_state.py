@@ -4,7 +4,7 @@
 
 from odoo.exceptions import UserError
 
-from odoo.addons.payroll.tests.test_hr_payroll_cancel import TestHrPayrollCancel
+from odoo.addons.th_payroll_ce.tests.test_hr_payroll_cancel import TestHrPayrollCancel
 
 
 class TestHrPayslipChangeState(TestHrPayrollCancel):

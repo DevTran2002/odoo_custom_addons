@@ -22,7 +22,7 @@
                     data-string="Payroll"
                     string="Payroll"
                     data-key="payroll"
-                    groups="payroll.group_payroll_manager"
+                    groups="th_payroll_ce.group_payroll_manager"
                 >
                     <h2>Accounting</h2>
                     <div class="row mt16 o_settings_container" id="payroll_accountant">

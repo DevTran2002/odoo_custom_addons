@@ -12,7 +12,7 @@
                     class="oe_stat_button"
                     icon="fa-money"
                     type="action"
-                    groups="payroll.group_payroll_user"
+                    groups="th_payroll_ce.group_payroll_user"
                 >
                     <field name="payslip_count" widget="statinfo" string="Payslips" />
                 </button>

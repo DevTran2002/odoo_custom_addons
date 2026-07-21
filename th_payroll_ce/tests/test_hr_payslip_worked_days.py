@@ -85,7 +85,7 @@ class TestWorkedDays(TestPayslipBase):
 
         # Set system parameter
         self.env["ir.config_parameter"].sudo().set_param(
-            "payroll.leaves_positive", False
+            "th_payroll_ce.leaves_positive", False
         )
 
         # I create an employee Payslip
@@ -117,7 +117,7 @@ class TestWorkedDays(TestPayslipBase):
 
         # Set system parameter
         self.env["ir.config_parameter"].sudo().set_param(
-            "payroll.leaves_positive", True
+            "th_payroll_ce.leaves_positive", True
         )
 
         # I create an employee Payslip
