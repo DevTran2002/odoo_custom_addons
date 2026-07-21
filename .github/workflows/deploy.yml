@@ -1,7 +1,6 @@
-# Tệp cấu hình quy trình CI/CD tự động cho thư mục addons_dev
-name: Deploy Custom Addons CI/CD
+# Tệp cấu hình luồng CI/CD tự động chạy trên máy cục bộ (Self-Hosted Runner)
+name: Deploy Custom Addons Local CI/CD
 
-# Kích hoạt khi có commit đẩy (push) lên nhánh main hoặc staging
 on:
   push:
     branches:
@@ -10,21 +9,15 @@ on:
 
 jobs:
   deploy-addons:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-      # Bước 1: Kết nối SSH trực tiếp tới Server và đồng bộ mã nguồn custom addons
-      - name: Đồng bộ mã nguồn module và cập nhật Odoo
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          script: |
-            # 1. Di chuyển vào thư mục addons_dev trên Server và kéo mã nguồn mới nhất
-            cd /opt/odoo_16CE/addons_dev
-            git pull origin main
+      # Bước 1: Lấy mã nguồn mới nhất từ GitHub về máy
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
 
-            # 2. Khởi chạy lại container Odoo để hệ thống nhận mã nguồn mới
-            cd /opt/odoo_16CE/docker
-            docker compose restart odoo_sambala
+      # Bước 2: Khởi chạy lại Docker Container Odoo trên máy local
+      - name: Khởi chạy lại Docker Container Odoo
+        shell: powershell
+        run: |
+          Set-Location -Path "d:\odoo_16CE\docker"
+          docker compose restart odoo_sambala
