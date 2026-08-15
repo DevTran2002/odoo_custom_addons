@@ -24,6 +24,10 @@ patch(WebClient.prototype, "web_responsive.DefaultAppsMenu", {
             document.body.classList.toggle("o_apps_menu_opened", state);
         });
     },
+    async _loadDefaultApp() {
+        // Ghi đè phương thức _loadDefaultApp để mở màn hình Apps Menu (màn hình Home) khi không có action/menu trên URL
+        return this.env.bus.trigger("APPS_MENU:STATE_CHANGED", true);
+    },
 });
 
 /**
@@ -36,6 +40,9 @@ export class AppsMenu extends Component {
         this.menuService = useService("menu");
         useBus(this.env.bus, "ACTION_MANAGER:UI-UPDATED", () => {
             this.setOpenState(false, false);
+        });
+        useBus(this.env.bus, "APPS_MENU:STATE_CHANGED", ({detail: state}) => {
+            this.state.open = state;
         });
         this._setupKeyNavigation();
     }

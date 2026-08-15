@@ -1,0 +1,47 @@
+.o_list_renderer table.o_list_table tbody tr.o_data_row:hover {
+    background-color: #e9ecef !important;
+}
+
+.o_list_renderer table.o_list_table tbody tr.o_data_row:hover>td {
+    background-color: transparent !important;
+}
+
+.o_list_renderer .o_list_table {
+    will-change: transform;
+}
+
+.o_list_renderer table.o_list_table tbody tr.th-virtual-spacer-top {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.o_list_renderer table.o_list_table tbody tr.th-virtual-spacer-top>td {
+    padding: 0 !important;
+    border: 0 !important;
+    height: inherit;
+}
+
+.o_list_renderer table.o_list_table tbody tr.th-virtual-spacer-bot {
+    pointer-events: none;
+}
+
+.o_list_renderer table.o_list_table tbody tr.th-virtual-spacer-bot>td {
+    padding: 10px 0 !important;
+    border: 0 !important;
+    text-align: center !important;
+    vertical-align: top !important;
+}
+
+.th-loading-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6c757d;
+    background: #f8f9fa;
+    padding: 6px 18px;
+    border-radius: 20px;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
