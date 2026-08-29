@@ -25,6 +25,10 @@ patch(ListRenderer.prototype, "th_base_performance.progressive_scroll_renderer",
 
         // Ghi đè getter list.records để chỉ trả về phân đoạn bản ghi từ 0 đến endIndex
         onWillRender(() => {
+            if (!this._thNeedVirtual()) {
+                return;
+            }
+
             const list = this.props.list;
             if (!list || list.isGrouped || !list.records) {
                 return;
@@ -56,7 +60,7 @@ patch(ListRenderer.prototype, "th_base_performance.progressive_scroll_renderer",
             Object.defineProperty(list, "records", {
                 get() {
                     const raw = _internal || [];
-                    if (raw.length <= VIRTUAL_THRESHOLD) {
+                    if (!self._thNeedVirtual() || raw.length <= VIRTUAL_THRESHOLD) {
                         return raw;
                     }
                     return raw.slice(0, self.thVirtual.endIndex);
@@ -97,13 +101,36 @@ patch(ListRenderer.prototype, "th_base_performance.progressive_scroll_renderer",
 
         onWillUnmount(() => {
             this._thDetachScroll();
+            this._thRemoveSpacerBot();
+            const list = this.props.list;
+            if (list && list._thPatched) {
+                delete list._thPatched;
+                if (list._thRawRecords) {
+                    Object.defineProperty(list, "records", {
+                        value: list._thRawRecords,
+                        writable: true,
+                        configurable: true,
+                        enumerable: true,
+                    });
+                    delete list._thRawRecords;
+                }
+            }
         });
     },
 
-    // Kiểm tra điều kiện áp dụng cuộn phân đoạn (bỏ qua danh sách nhóm, x2many hoặc sắp xếp lại dòng)
+    // Kiểm tra điều kiện áp dụng cuộn phân đoạn (bỏ qua danh sách nhóm, x2many, danh sách có thể chỉnh sửa dòng hoặc sắp xếp lại dòng)
     _thNeedVirtual() {
         const list = this.props.list;
-        if (!list || list.isGrouped || this.isX2Many || this.canResequenceRows) {
+        if (
+            !list ||
+            list.isGrouped ||
+            this.isX2Many ||
+            this.canResequenceRows ||
+            this.props.archInfo?.editable ||
+            this.props.editable ||
+            list.isInlineEditable ||
+            list.editedRecord
+        ) {
             return false;
         }
         const raw = list._thRawRecords || list.records || [];

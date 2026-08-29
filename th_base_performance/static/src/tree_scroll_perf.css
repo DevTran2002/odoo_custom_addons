@@ -6,10 +6,6 @@
     background-color: transparent !important;
 }
 
-.o_list_renderer .o_list_table {
-    will-change: transform;
-}
-
 .o_list_renderer table.o_list_table tbody tr.th-virtual-spacer-top {
     visibility: hidden;
     pointer-events: none;
