@@ -31,6 +31,9 @@
                         padding: 12px;
                         background-color: #f8fafc;
                     }
+                    .th_upload_scroll_container > div {
+                        width:100%;
+                    }
                 </style>
                 <field name="th_is_done" invisible="1"/>
                 <div attrs="{'invisible': [('th_is_done', '=', True)]}">

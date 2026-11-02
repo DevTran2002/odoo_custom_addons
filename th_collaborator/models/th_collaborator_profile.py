@@ -67,6 +67,13 @@ class ThCollaboratorProfile(models.Model):
     th_running_contract_count = fields.Integer(
         string='Số HĐ đang chạy', compute='_compute_contract_counts')
 
+    # Thống kê email đã gửi
+    th_mail_sent_count = fields.Integer(string='Đã gửi', compute='_compute_mail_statistics')
+    th_mail_delivered_count = fields.Integer(string='Đã nhận (SL)', compute='_compute_mail_statistics')
+    th_mail_failed_count = fields.Integer(string='Lỗi (SL)', compute='_compute_mail_statistics')
+    th_mail_delivered_ratio = fields.Integer(string='Đã nhận', compute='_compute_mail_statistics')
+    th_mail_failed_ratio = fields.Integer(string='Lỗi', compute='_compute_mail_statistics')
+
     _sql_constraints = [
         ('th_phone_normalized_uniq', 'unique(th_phone_normalized)',
          'Số điện thoại đã tồn tại ở một CTV khác.'),
@@ -145,4 +152,60 @@ class ThCollaboratorProfile(models.Model):
                 'default_th_collaborator_id': self.id,
                 'default_user_id': self.user_id.id if self.user_id else False,
             },
+        }
+
+    def _compute_mail_statistics(self):
+        """Tính toán thống kê toàn bộ email đã gửi cho CTV này."""
+        MailSent = self.env['th.collaborator.mail.sent']
+        for profile in self:
+            mails = MailSent.search([('th_collaborator_id', '=', profile.id)])
+            sent_count = len(mails.filtered(lambda m: m.state in ('sent', 'outgoing', 'exception')))
+            delivered_count = len(mails.filtered(lambda m: m.state == 'sent'))
+            failed_count = len(mails.filtered(lambda m: m.state == 'exception'))
+
+            profile.th_mail_sent_count = sent_count
+            profile.th_mail_delivered_count = delivered_count
+            profile.th_mail_failed_count = failed_count
+
+            if sent_count > 0:
+                profile.th_mail_delivered_ratio = int(100 * delivered_count / sent_count)
+                profile.th_mail_failed_ratio = int(100 * failed_count / sent_count)
+            else:
+                profile.th_mail_delivered_ratio = 0
+                profile.th_mail_failed_ratio = 0
+
+    def th_action_view_sent_mails(self):
+        """Xem danh sách toàn bộ email đã gửi cho CTV này."""
+        self.ensure_one()
+        return {
+            'name': _('Email đã gửi - CTV %s') % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'th.collaborator.mail.sent',
+            'view_mode': 'tree,form',
+            'domain': [('th_collaborator_id', '=', self.id)],
+            'context': {'create': False, 'edit': False, 'delete': False},
+        }
+
+    def th_action_view_delivered_mails(self):
+        """Xem danh sách email đã nhận (sent) của CTV này."""
+        self.ensure_one()
+        return {
+            'name': _('Email đã nhận - CTV %s') % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'th.collaborator.mail.sent',
+            'view_mode': 'tree,form',
+            'domain': [('th_collaborator_id', '=', self.id), ('state', '=', 'sent')],
+            'context': {'create': False, 'edit': False, 'delete': False},
+        }
+
+    def th_action_view_failed_mails(self):
+        """Xem danh sách email bị lỗi của CTV này."""
+        self.ensure_one()
+        return {
+            'name': _('Email lỗi - CTV %s') % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'th.collaborator.mail.sent',
+            'view_mode': 'tree,form',
+            'domain': [('th_collaborator_id', '=', self.id), ('state', '=', 'exception')],
+            'context': {'create': False, 'edit': False, 'delete': False},
         }

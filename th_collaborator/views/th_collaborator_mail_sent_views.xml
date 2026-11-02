@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View cho Mail đã gửi CTV -->
+    <record id="th_collaborator_mail_sent_tree_view" model="ir.ui.view">
+        <field name="name">th.collaborator.mail.sent.tree</field>
+        <field name="model">th.collaborator.mail.sent</field>
+        <field name="arch" type="xml">
+            <tree string="Mail đã gửi cho CTV" create="false" edit="false" delete="false">
+                <field name="th_collaborator_id" string="Cộng tác viên"/>
+                <field name="th_contract_code" string="Mã HĐ" optional="show"/>
+                <field name="th_contract_id" string="Hợp đồng" optional="show"/>
+                <field name="subject" string="Tiêu đề"/>
+                <field name="email_to" string="Email đến"/>
+                <field name="date" string="Ngày gửi"/>
+                <field name="state" string="Trạng thái" widget="badge"
+                       decoration-success="state == 'sent'"
+                       decoration-info="state == 'outgoing'"
+                       decoration-danger="state == 'exception'"
+                       decoration-muted="state == 'cancel'"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View cho Mail đã gửi CTV -->
+    <record id="th_collaborator_mail_sent_form_view" model="ir.ui.view">
+        <field name="name">th.collaborator.mail.sent.form</field>
+        <field name="model">th.collaborator.mail.sent</field>
+        <field name="arch" type="xml">
+            <form string="Chi tiết Email đã gửi" create="false" edit="false" delete="false">
+                <sheet>
+                    <group>
+                        <group string="Đối tượng liên quan">
+                            <field name="th_collaborator_id"/>
+                            <field name="th_contract_id"/>
+                        </group>
+                        <group string="Thông tin gửi nhận">
+                            <field name="email_from"/>
+                            <field name="email_to"/>
+                            <field name="date"/>
+                            <field name="state" widget="badge"
+                                   decoration-success="state == 'sent'"
+                                   decoration-info="state == 'outgoing'"
+                                   decoration-danger="state == 'exception'"
+                                   decoration-muted="state == 'cancel'"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="subject"/>
+                    </group>
+                    <notebook>
+                        <page string="Nội dung Email" name="th_mail_body">
+                            <field name="body_html" widget="html" nolabel="1"/>
+                        </page>
+                        <page string="Lý do thất bại" name="th_mail_failure" attrs="{'invisible': [('state', '!=', 'exception')]}">
+                            <field name="failure_reason" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View cho Mail đã gửi CTV -->
+    <record id="th_collaborator_mail_sent_search_view" model="ir.ui.view">
+        <field name="name">th.collaborator.mail.sent.search</field>
+        <field name="model">th.collaborator.mail.sent</field>
+        <field name="arch" type="xml">
+            <search string="Tìm kiếm Mail đã gửi">
+                <field name="th_collaborator_name" string="Cộng tác viên"
+                       filter_domain="[('th_collaborator_name', 'ilike', self)]"/>
+                <field name="th_contract_code" string="Mã hợp đồng"
+                       filter_domain="[('th_contract_code', 'ilike', self)]"/>
+                <field name="th_contract_name" string="Tên hợp đồng"
+                       filter_domain="[('th_contract_name', 'ilike', self)]"/>
+                <field name="subject" string="Tiêu đề"
+                       filter_domain="[('subject', 'ilike', self)]"/>
+                <field name="email_to" string="Email đến"
+                       filter_domain="[('email_to', 'ilike', self)]"/>
+
+                <separator/>
+                <filter name="filter_sent" string="Đã gửi" domain="[('state', '=', 'sent')]"/>
+                <filter name="filter_outgoing" string="Đang gửi" domain="[('state', '=', 'outgoing')]"/>
+                <filter name="filter_exception" string="Lỗi" domain="[('state', '=', 'exception')]"/>
+                <filter name="filter_cancel" string="Đã hủy" domain="[('state', '=', 'cancel')]"/>
+
+                <group expand="0" string="Gom nhóm">
+                    <filter name="group_collaborator" string="Cộng tác viên" context="{'group_by': 'th_collaborator_id'}"/>
+                    <filter name="group_contract" string="Hợp đồng" context="{'group_by': 'th_contract_id'}"/>
+                    <filter name="group_state" string="Trạng thái" context="{'group_by': 'state'}"/>
+                    <filter name="group_date" string="Ngày gửi" context="{'group_by': 'date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action cho Mail đã gửi CTV -->
+    <record id="th_collaborator_mail_sent_action" model="ir.actions.act_window">
+        <field name="name">Mail đã gửi</field>
+        <field name="res_model">th.collaborator.mail.sent</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="th_collaborator_mail_sent_search_view"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Chưa có email nào được gửi cho CTV
+            </p>
+            <p>
+                Lịch sử các email gửi mời ký hợp đồng hoặc nhắc nhở CTV sẽ được tự động lưu vết tại đây.
+            </p>
+        </field>
+    </record>
+</odoo>
+

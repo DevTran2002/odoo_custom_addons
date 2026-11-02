@@ -130,6 +130,26 @@
                     <field name="state" widget="statusbar" statusbar_visible="draft,open,submitted,valid,close" options="{'clickable': '1'}"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="th_action_view_sent_mails"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-paper-plane">
+                            <field name="th_mail_sent_count" widget="statinfo" string="Đã gửi"/>
+                        </button>
+                        <button name="th_action_view_delivered_mails"
+                                type="object"
+                                class="oe_stat_button">
+                            <field name="th_mail_delivered_ratio" widget="percentpie" string="Đã nhận"/>
+                        </button>
+                        <button name="th_action_view_failed_mails"
+                                type="object"
+                                class="oe_stat_button"
+                                attrs="{'invisible': [('th_mail_failed_count', '=', 0)]}">
+                            <field name="th_mail_failed_ratio" widget="percentpie" string="Lỗi"/>
+                        </button>
+                    </div>
+                    <field name="th_mail_failed_count" invisible="1"/>
                     <field name="th_company_file_name" invisible="1"/>
                     <field name="th_final_file_name" invisible="1"/>
                     <field name="th_is_valid_confirmed" invisible="1"/>

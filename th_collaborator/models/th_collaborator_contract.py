@@ -72,6 +72,13 @@ class ThCollaboratorContract(models.Model):
         string='Đã ký/nộp', compute='_compute_is_signed', store=True, tracking=True)
     th_mail_error = fields.Text(string='Lỗi gửi mail', copy=False, tracking=True)
 
+    # Thống kê email đã gửi
+    th_mail_sent_count = fields.Integer(string='Đã gửi', compute='_compute_mail_statistics')
+    th_mail_delivered_count = fields.Integer(string='Đã nhận (SL)', compute='_compute_mail_statistics')
+    th_mail_failed_count = fields.Integer(string='Lỗi (SL)', compute='_compute_mail_statistics')
+    th_mail_delivered_ratio = fields.Integer(string='Đã nhận', compute='_compute_mail_statistics')
+    th_mail_failed_ratio = fields.Integer(string='Lỗi', compute='_compute_mail_statistics')
+
     # ------------------------------------------------------------------
     # Phân loại tệp hợp đồng & Trạng thái xác nhận 2 bên
     # ------------------------------------------------------------------
@@ -350,6 +357,62 @@ class ThCollaboratorContract(models.Model):
         })
         self.message_post(body=_('Nhân viên %s đã kiểm tra và xác nhận hợp đồng hợp lệ.') % self.env.user.name)
         return True
+
+    def _compute_mail_statistics(self):
+        """Tính toán thống kê số lượng và tỷ lệ email đã gửi cho hợp đồng này."""
+        MailSent = self.env['th.collaborator.mail.sent']
+        for contract in self:
+            mails = MailSent.search([('th_contract_id', '=', contract.id)])
+            sent_count = len(mails.filtered(lambda m: m.state in ('sent', 'outgoing', 'exception')))
+            delivered_count = len(mails.filtered(lambda m: m.state == 'sent'))
+            failed_count = len(mails.filtered(lambda m: m.state == 'exception'))
+
+            contract.th_mail_sent_count = sent_count
+            contract.th_mail_delivered_count = delivered_count
+            contract.th_mail_failed_count = failed_count
+
+            if sent_count > 0:
+                contract.th_mail_delivered_ratio = int(100 * delivered_count / sent_count)
+                contract.th_mail_failed_ratio = int(100 * failed_count / sent_count)
+            else:
+                contract.th_mail_delivered_ratio = 0
+                contract.th_mail_failed_ratio = 0
+
+    def th_action_view_sent_mails(self):
+        """Xem danh sách email đã gửi cho hợp đồng này."""
+        self.ensure_one()
+        return {
+            'name': _('Email đã gửi - Hợp đồng %s') % (self.th_code or self.name),
+            'type': 'ir.actions.act_window',
+            'res_model': 'th.collaborator.mail.sent',
+            'view_mode': 'tree,form',
+            'domain': [('th_contract_id', '=', self.id)],
+            'context': {'create': False, 'edit': False, 'delete': False},
+        }
+
+    def th_action_view_delivered_mails(self):
+        """Xem danh sách email đã nhận (sent) của hợp đồng này."""
+        self.ensure_one()
+        return {
+            'name': _('Email đã nhận - Hợp đồng %s') % (self.th_code or self.name),
+            'type': 'ir.actions.act_window',
+            'res_model': 'th.collaborator.mail.sent',
+            'view_mode': 'tree,form',
+            'domain': [('th_contract_id', '=', self.id), ('state', '=', 'sent')],
+            'context': {'create': False, 'edit': False, 'delete': False},
+        }
+
+    def th_action_view_failed_mails(self):
+        """Xem danh sách email bị lỗi của hợp đồng này."""
+        self.ensure_one()
+        return {
+            'name': _('Email lỗi - Hợp đồng %s') % (self.th_code or self.name),
+            'type': 'ir.actions.act_window',
+            'res_model': 'th.collaborator.mail.sent',
+            'view_mode': 'tree,form',
+            'domain': [('th_contract_id', '=', self.id), ('state', '=', 'exception')],
+            'context': {'create': False, 'edit': False, 'delete': False},
+        }
 
     @api.depends('th_access_token')
     def _compute_upload_url(self):

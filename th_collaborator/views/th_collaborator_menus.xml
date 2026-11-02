@@ -17,7 +17,12 @@
               action="th_collaborator_upload_wizard_action" sequence="30"
               groups="th_collaborator.th_access_collaborator_user"/>
 
-    <!-- 4. Cấu hình -->
+    <!-- 4. Quản lý Mail đã gửi -->
+    <menuitem id="th_collaborator_mail_sent_menu" name="Mail đã gửi" parent="th_collaborator_root_menu"
+              action="th_collaborator_mail_sent_action" sequence="40"
+              groups="th_collaborator.th_access_collaborator_user"/>
+
+    <!-- 5. Cấu hình -->
     <menuitem id="th_collaborator_config_menu" name="Cấu hình" parent="th_collaborator_root_menu" sequence="90"/>
     <menuitem id="th_collaborator_contract_type_menu" name="Loại hợp đồng" parent="th_collaborator_config_menu"
               action="th_collaborator_contract_type_action" sequence="10"/>
