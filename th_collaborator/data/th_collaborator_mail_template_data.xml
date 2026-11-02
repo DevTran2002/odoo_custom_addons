@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+        <record id="th_collaborator_profile_send_mail_template" model="mail.template">
+            <field name="name">CTV: Mời hoàn thiện hợp đồng</field>
+            <field name="model_id" ref="model_th_collaborator_contract"/>
+            <field name="subject">[{{ object.env.company.name }}]. HOÀN THIỆN HỢP ĐỒNG CTV{{ (' ' + object.th_collaborator_id.th_program.upper()) if object.th_collaborator_id.th_program else '' }} - {{ object.th_collaborator_id.name }}</field>
+            <field name="email_from">{{ object.user_id.email_formatted }}</field>
+            <field name="reply_to">{{ object.user_id.email_formatted }}</field>
+            <field name="email_to">{{ object.th_email }}</field>
+            <field name="auto_delete" eval="False"/>
+            <field name="body_html" type="html">
+                <div style="margin: 0px; padding: 0px; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.6; color: #333333;">
+                    <p>Kính gửi Anh/Chị 
+                        <strong t-out="object.th_collaborator_id.name or ''">Cộng tác viên</strong>,
+                    </p>
+                    <p>Nhằm hoàn thiện hồ sơ, chứng từ liên quan đến quá trình hợp tác giữa Anh/Chị và Công ty, Công ty gửi Anh/Chị Hợp đồng và Phụ lục Hợp đồng dưới dạng PDF để thực hiện ký xác nhận điện tử.
+                    </p>
+                    <p style="font-weight: bold; margin-top: 18px; margin-bottom: 6px; color: #111111;">I. Ký xác nhận điện tử:
+                    </p>
+                    <p style="margin-bottom: 6px;">Anh/Chị vui lòng thực hiện theo các bước sau (có hướng dẫn chi tiết kèm theo mail này):
+                    </p>
+                    <ol style="margin-top: 4px; padding-left: 20px;">
+                        <li style="margin-bottom: 6px;">Kiểm tra thông tin cá nhân và nội dung Hợp đồng/Phụ lục Hợp đồng đính kèm email.</li>
+                        <li style="margin-bottom: 6px;">Thực hiện ký điện tử trực tiếp trên file PDF theo Hướng dẫn ký điện tử được gửi kèm.</li>
+                        <li style="margin-bottom: 6px;">
+            Sau khi ký, vui lòng gửi lại file PDF đã ký bằng cách phản hồi trực tiếp email này hoặc tải lên trực tiếp qua đường link cổng thông tin bên dưới:
+            
+                            <div style="margin: 12px 0px;">
+                                <a t-att-href="object.th_collaborator_id.th_upload_url"
+                   style="background-color: #714B67; padding: 10px 20px; color: #FFFFFF; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
+                    Tải lên hợp đồng đã ký
+                </a>
+                            </div>
+                            <span style="font-size: 13px; color: #666666;">
+                                <em>(Đường dẫn bảo mật riêng dành cho Anh/Chị, mở trực tiếp không cần đăng nhập).</em>
+                            </span></li>
+                        <li style="margin-bottom: 6px;">
+            Đồng thời, trong nội dung email phản hồi, Anh/Chị vui lòng xác nhận:
+                            <br/>
+                            <blockquote style="margin: 8px 0px; padding: 8px 12px; background-color: #f8f9fa; border-left: 4px solid #714B67; font-style: italic;">
+                “Tôi xác nhận chữ ký trên Hợp đồng và Phụ lục Hợp đồng đính kèm là chữ ký của tôi; tôi đã đọc, hiểu và đồng ý với toàn bộ nội dung của Hợp đồng và Phụ lục Hợp đồng.”
+            </blockquote></li>
+                    </ol>
+                    <p style="font-weight: bold; margin-top: 18px; margin-bottom: 6px; color: #111111;">II. Trường hợp chưa có Mã số thuế cá nhân:
+                    </p>
+                    <p style="margin-bottom: 6px;">
+        Anh/Chị vui lòng kiểm tra MST trên 
+        
+                        <a href="https://tracuunnt.gdt.gov.vn/tcnnt/mstcn.jsp" target="_blank" style="color: #714B67; text-decoration: underline;">
+            https://tracuunnt.gdt.gov.vn/tcnnt/mstcn.jsp
+        </a>
+                    </p>
+                    <p style="margin-bottom: 6px;">Nếu hiển thị 
+                        <strong>“Không tìm thấy người nộp thuế nào phù hợp”</strong> thì Anh/Chị điền Giấy ủy quyền đăng ký mã số thuế cá nhân (theo mẫu đính kèm mail này), in và ký trực tiếp, sau đó:
+                    </p>
+                    <ol style="margin-top: 4px; padding-left: 20px;">
+                        <li style="margin-bottom: 6px;">Scan/chụp rõ nội dung và gửi lại qua email cho Công ty; đồng thời</li>
+                        <li style="margin-bottom: 6px;">Gửi bản gốc qua chuyển phát nhanh đến địa chỉ: 
+                            <strong>116 Trần Vỹ, Phường Phú Diễn, Hà Nội</strong>.</li>
+                    </ol>
+                    <p style="font-weight: bold; margin-top: 18px; margin-bottom: 6px; color: #111111;">III. Tài liệu đính kèm:
+                    </p>
+                    <p style="margin-bottom: 6px;">Kèm theo mail này có các văn bản sau:
+                    </p>
+                    <ul style="margin-top: 4px; padding-left: 20px;">
+                        <li style="margin-bottom: 4px;">1. Hợp đồng 
+                            <strong t-out="object.name or ''"/> (Mã: 
+                            <t t-out="object.th_code or ''"/>)</li>
+                        <li style="margin-bottom: 4px;">2. Phụ lục 01 (nếu có)</li>
+                        <li style="margin-bottom: 4px;">3. Hướng dẫn ký điện tử trên file PDF</li>
+                        <li style="margin-bottom: 4px;">4. Giấy ủy quyền đăng ký mã số thuế cá nhân</li>
+                    </ul>
+                    <p style="margin-top: 16px;">
+        Kính mong Anh/Chị phối hợp hoàn thiện và gửi lại Hợp đồng và Phụ lục trong thời gian sớm nhất
+        
+                        <t t-if="object.date_end">
+            (trước ngày 
+                            <strong t-out="object.date_end.strftime('%d/%m/%Y')"/>)
+        
+                        </t>.
+    
+                    </p>
+                    <p>Trân trọng cảm ơn sự phối hợp của Anh/Chị.
+                    </p>
+                    <p style="margin-top: 24px;">
+        Trân trọng,
+                        <br/>
+                        <strong t-out="object.user_id.name or object.env.company.name"/>
+                        <br/>
+                        <span t-out="object.env.company.name"/>
+                    </p>
+                </div></field>
+        </record>
+
+        <!-- Mẫu email nhắc nhở đôn đốc CTV nộp hợp đồng -->
+        <record id="th_collaborator_contract_reminder_mail_template" model="mail.template">
+            <field name="name">CTV: Nhắc nhở hoàn thiện hợp đồng</field>
+            <field name="model_id" ref="model_th_collaborator_contract"/>
+            <field name="subject">[{{ object.env.company.name }}]. [NHẮC NHỞ] HOÀN THIỆN HỢP ĐỒNG CTV{{ (' ' + object.th_collaborator_id.th_program.upper()) if object.th_collaborator_id.th_program else '' }} - {{ object.th_collaborator_id.name }}</field>
+            <field name="email_from">{{ object.user_id.email_formatted }}</field>
+            <field name="reply_to">{{ object.user_id.email_formatted }}</field>
+            <field name="email_to">{{ object.th_email }}</field>
+            <field name="auto_delete" eval="False"/>
+            <field name="body_html" type="html">
+                <div style="margin: 0px; padding: 0px; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.6; color: #333333;">
+                    <p>Kính gửi Anh/Chị 
+                        <strong t-out="object.th_collaborator_id.name or ''">Cộng tác viên</strong>,
+                    </p>
+                    <p>Công ty xin gửi thông báo nhắc nhở về việc ký và gửi lại bản hợp đồng 
+                        <strong t-out="object.name or ''"/> (Mã: <t t-out="object.th_code or ''"/>).
+                    </p>
+                    <t t-if="object.date_end">
+                        <p style="color: #b02a37; font-weight: bold;">
+                            Hạn chót hoàn thiện hợp đồng: <span t-out="object.date_end.strftime('%d/%m/%Y')"/>.
+                        </p>
+                    </t>
+                    <p>Anh/Chị vui lòng kiểm tra, ký xác nhận điện tử và gửi lại file PDF đã ký qua đường link cổng thông tin bên dưới:</p>
+                    <div style="margin: 16px 0px;">
+                        <a t-att-href="object.th_collaborator_id.th_upload_url"
+                           style="background-color: #714B67; padding: 10px 20px; color: #FFFFFF; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
+                            Tải lên hợp đồng đã ký
+                        </a>
+                    </div>
+                    <p style="font-size: 13px; color: #666666;">
+                        <em>(Đường dẫn bảo mật riêng dành cho Anh/Chị, mở trực tiếp không cần đăng nhập).</em>
+                    </p>
+                    <p>Nếu Anh/Chị đã gửi lại file hoặc có bất kỳ vướng mắc nào, vui lòng phản hồi trực tiếp email này để được hỗ trợ kịp thời.</p>
+                    <p>Trân trọng cảm ơn sự phối hợp của Anh/Chị.</p>
+                    <p style="margin-top: 24px;">
+                        Trân trọng,
+                        <br/>
+                        <strong t-out="object.user_id.name or object.env.company.name"/>
+                        <br/>
+                        <span t-out="object.env.company.name"/>
+                    </p>
+                </div>
+            </field>
+        </record>
+    </data>
+</odoo>

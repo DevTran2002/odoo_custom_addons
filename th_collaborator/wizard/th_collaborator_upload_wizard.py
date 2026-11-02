@@ -1,0 +1,220 @@
+# -*- coding: utf-8 -*-
+import logging
+import os
+import re
+
+from odoo import _, api, fields, models
+from odoo.exceptions import UserError
+from odoo.fields import Command
+
+_logger = logging.getLogger(__name__)
+
+
+class ThCollaboratorUploadWizard(models.TransientModel):
+    """Wizard hỗ trợ nạp hàng loạt file hợp đồng công ty từ máy tính.
+
+    Hỗ trợ 2 chế độ:
+    - Bổ sung hợp đồng mới: Bóc tách SĐT và Mã HĐ từ tên file để tạo mới hợp đồng (state = draft).
+    - Thay thế hợp đồng cũ: Bóc tách SĐT và Mã HĐ để tìm hợp đồng tương ứng, ghi đè file và lưu vết chatter.
+    """
+    _name = 'th.collaborator.upload.wizard'
+    _description = 'Nạp hợp đồng CTV hàng loạt'
+
+    th_mode = fields.Selection([
+        ('add', 'Bổ sung hợp đồng mới'),
+        ('replace', 'Thay thế hợp đồng cũ'),
+    ], string='Chế độ xử lý', default='add', required=True)
+
+    th_contract_type_ids = fields.Many2many(
+        'th.collaborator.contract.type', 'th_collaborator_upload_wizard_contract_type_rel',
+        'th_wizard_id', 'th_contract_type_id', string='Loại hợp đồng')
+
+    th_batch_date = fields.Date(
+        string='Ngày đẩy hợp đồng', default=fields.Date.context_today)
+
+    th_attachment_ids = fields.Many2many(
+        'ir.attachment', 'th_collaborator_upload_wizard_attachment_rel',
+        'th_wizard_id', 'th_attachment_id', string='Các file hợp đồng')
+
+    th_target_contract_ids = fields.Many2many(
+        'th.collaborator.contract', 'th_collaborator_upload_wizard_target_contract_rel',
+        'th_wizard_id', 'th_contract_id', string='Hợp đồng cần thay thế')
+
+    th_result_note = fields.Text(string='Kết quả xử lý')
+    th_is_done = fields.Boolean(string='Đã xử lý', default=False)
+
+    @api.model
+    def default_get(self, fields_list):
+        """Khởi tạo giá trị mặc định, tự động nhận diện hợp đồng nếu mở từ danh sách hợp đồng."""
+        res = super().default_get(fields_list)
+        active_model = self.env.context.get('active_model')
+        active_ids = self.env.context.get('active_ids')
+        if active_model == 'th.collaborator.contract' and active_ids:
+            res['th_mode'] = 'replace'
+            res['th_target_contract_ids'] = [Command.set(active_ids)]
+        return res
+
+    def _extract_phone_and_code(self, file_name):
+        """Bóc tách SĐT, Mã HĐ và phần tên mô tả từ tên tệp tin.
+
+        Quy chuẩn đặt tên: SĐT_MãHĐ[_TênHĐ].pdf (ví dụ: 0912345678_HD01_GiangDay.pdf).
+        :param file_name: Tên file đính kèm
+        :return: (phone, contract_code, custom_name)
+        """
+        Profile = self.env['th.collaborator.profile']
+        base_name = os.path.splitext(os.path.basename(file_name))[0]
+        tokens = [token.strip() for token in re.split(r'[_\-\s]', base_name) if token.strip()]
+
+        if not tokens:
+            return False, False, False
+
+        phone = Profile._normalize_phone(tokens[0])
+        if len(phone) < 9:
+            return False, False, False
+
+        code = tokens[1] if len(tokens) > 1 else False
+        custom_name = ' '.join(tokens[2:]) if len(tokens) > 2 else False
+        return phone, code, custom_name
+
+    def th_action_import_contracts(self):
+        """Xử lý nạp hàng loạt file hợp đồng theo chế độ đã chọn."""
+        self.ensure_one()
+        if not self.th_attachment_ids:
+            raise UserError(_('Vui lòng chọn ít nhất 1 file hợp đồng cần tải lên.'))
+
+        Profile = self.env['th.collaborator.profile']
+        Contract = self.env['th.collaborator.contract']
+
+        # Kiểm tra định dạng file chỉ cho phép PDF hoặc ảnh
+        invalid_files = self.th_attachment_ids.filtered(
+            lambda att: not Profile._is_allowed_contract_file(att.name, mimetype=att.mimetype))
+        if invalid_files:
+            raise UserError(_('Chỉ chấp nhận file PDF hoặc hình ảnh (.jpg, .jpeg, .png). Các file sau không hợp lệ:\n%s')
+                            % '\n'.join(invalid_files.mapped('name')))
+
+        created_contracts = self.env['th.collaborator.contract']
+        updated_contracts = self.env['th.collaborator.contract']
+        unmatched_errors = []
+
+        # Tra cứu trước danh sách CTV để tối ưu hiệu năng
+        extracted_data = []
+        all_phones = set()
+        for att in self.th_attachment_ids:
+            phone, code, custom_name = self._extract_phone_and_code(att.name)
+            if not phone:
+                unmatched_errors.append(f"{att.name}: Không tìm thấy số điện thoại hợp lệ ở đầu tên file.")
+                continue
+            if not code:
+                unmatched_errors.append(f"{att.name}: Không tìm thấy Mã hợp đồng (cấu trúc yêu cầu: SĐT_MãHĐ_TênFile).")
+                continue
+            extracted_data.append((att, phone, code, custom_name))
+            all_phones.add(phone)
+
+        profiles = Profile.search([('th_phone_normalized', 'in', list(all_phones))])
+        profile_map = {p.th_phone_normalized: p for p in profiles}
+
+        for att, phone, code, custom_name in extracted_data:
+            profile = profile_map.get(phone)
+            if not profile:
+                unmatched_errors.append(f"{att.name}: Không tìm thấy CTV có số điện thoại {phone}.")
+                continue
+
+            existing_contract = Contract.search([('th_code', '=', code)], limit=1)
+
+            if self.th_mode == 'add':
+                # Chế độ 1: Bổ sung hợp đồng mới
+                if existing_contract:
+                    unmatched_errors.append(
+                        f"{att.name}: Mã HĐ '{code}' đã tồn tại trong hệ thống (HĐ: {existing_contract.name} - CTV: {existing_contract.th_collaborator_id.name}). Vui lòng chọn chế độ Thay thế nếu muốn cập nhật file."
+                    )
+                    continue
+
+                contract_name = custom_name or f"Hợp đồng {code} - {profile.name}"
+                new_contract = Contract.create({
+                    'name': contract_name,
+                    'th_code': code,
+                    'th_collaborator_id': profile.id,
+                    'user_id': profile.user_id.id if profile.user_id else self.env.user.id,
+                    'th_batch_date': self.th_batch_date or fields.Date.context_today(self),
+                    'th_contract_type_ids': [Command.set(self.th_contract_type_ids.ids)] if self.th_contract_type_ids else False,
+                    'state': 'draft',
+                })
+                att.write({
+                    'res_model': new_contract._name,
+                    'res_id': new_contract.id,
+                })
+                new_contract.write({
+                    'th_company_attachment_ids': [Command.link(att.id)],
+                })
+                new_contract.message_post(body=_('Tạo mới hợp đồng qua nạp file hàng loạt (Tệp nguồn: %s).') % att.name)
+                created_contracts |= new_contract
+
+            else:
+                # Chế độ 2: Thay thế hợp đồng cũ
+                target_contract = existing_contract
+                if not target_contract:
+                    # Nếu mã HĐ không khớp chính xác, thử tìm theo hồ sơ CTV nếu chỉ có 1 HĐ
+                    if len(profile.th_contract_ids) == 1:
+                        target_contract = profile.th_contract_ids[0]
+                    else:
+                        running = profile.th_contract_ids.filtered(lambda c: c.state == 'open')
+                        if len(running) == 1:
+                            target_contract = running[0]
+
+                if not target_contract:
+                    unmatched_errors.append(
+                        f"{att.name}: Không tìm thấy hợp đồng có mã '{code}' của CTV {profile.name} để thay thế."
+                    )
+                    continue
+
+                if target_contract.th_collaborator_id.id != profile.id:
+                    unmatched_errors.append(
+                        f"{att.name}: Mã HĐ '{code}' thuộc về CTV khác ({target_contract.th_collaborator_id.name}), không khớp với SĐT {phone}."
+                    )
+                    continue
+
+                old_file_names = target_contract.th_company_attachment_ids.mapped('name')
+                att.write({
+                    'res_model': target_contract._name,
+                    'res_id': target_contract.id,
+                })
+                # Ghi đè file công ty bằng file mới tải lên
+                target_contract.write({
+                    'th_company_attachment_ids': [Command.set([att.id])],
+                })
+                target_contract.message_post(
+                    body=_('Đã thay thế file hợp đồng công ty cũ [%s] bằng file mới [%s] qua nạp hàng loạt.') % (
+                        ', '.join(old_file_names) if old_file_names else _('Chưa có'), att.name
+                    )
+                )
+                updated_contracts |= target_contract
+
+        # Dọn dẹp các attachment tạm còn treo tại wizard nếu có
+        self.th_attachment_ids.filtered(lambda a: a.res_model == self._name).unlink()
+
+        # Tổng hợp báo cáo kết quả nạp file
+        result_lines = []
+        if self.th_mode == 'add':
+            result_lines.append(_('Tạo mới thành công %s hợp đồng.') % len(created_contracts))
+        else:
+            result_lines.append(_('Cập nhật/thay thế file thành công cho %s hợp đồng.') % len(updated_contracts))
+
+        if unmatched_errors:
+            result_lines.append(_('\nDanh sách file xử lý thất bại (%s file):') % len(unmatched_errors))
+            for err in unmatched_errors:
+                result_lines.append(f"  - {err}")
+
+        self.write({
+            'th_result_note': '\n'.join(result_lines),
+            'th_is_done': True,
+        })
+        _logger.info('Upload wizard: created %s, updated %s, failed %s',
+                     len(created_contracts), len(updated_contracts), len(unmatched_errors))
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+        }

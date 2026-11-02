@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="th_collaborator_root_menu" name="Cộng tác viên" sequence="60"
+              web_icon="th_collaborator,static/description/icon.png"
+              groups="th_collaborator.th_access_collaborator_user"/>
+
+    <!-- 1. Quản lý Cộng tác viên -->
+    <menuitem id="th_collaborator_profile_menu" name="Cộng tác viên" parent="th_collaborator_root_menu"
+              action="th_collaborator_profile_action" sequence="10"/>
+
+    <!-- 2. Quản lý Hợp đồng CTV -->
+    <menuitem id="th_collaborator_contract_menu" name="Hợp đồng" parent="th_collaborator_root_menu"
+              action="th_collaborator_contract_action" sequence="20"/>
+
+    <!-- 3. Tải hợp đồng hàng loạt -->
+    <menuitem id="th_collaborator_upload_wizard_menu" name="Tải hợp đồng hàng loạt" parent="th_collaborator_root_menu"
+              action="th_collaborator_upload_wizard_action" sequence="30"
+              groups="th_collaborator.th_access_collaborator_user"/>
+
+    <!-- 4. Cấu hình -->
+    <menuitem id="th_collaborator_config_menu" name="Cấu hình" parent="th_collaborator_root_menu" sequence="90"/>
+    <menuitem id="th_collaborator_contract_type_menu" name="Loại hợp đồng" parent="th_collaborator_config_menu"
+              action="th_collaborator_contract_type_action" sequence="10"/>
+</odoo>

@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View Hợp đồng CTV -->
+    <record id="th_collaborator_contract_tree_view" model="ir.ui.view">
+        <field name="name">th.collaborator.contract.tree</field>
+        <field name="model">th.collaborator.contract</field>
+        <field name="arch" type="xml">
+            <tree string="Hợp đồng CTV">
+                <header>
+                    <button name="th_action_send_contract_mail_batch" type="object" string="Gửi mail hợp đồng"
+                            confirm="Các hợp đồng đã gửi mail trước đó sẽ được gửi lại. Bạn có chắc muốn gửi?"/>
+                    <button name="th_action_download_company_contracts" type="object" string="Tải HĐ công ty"/>
+                    <button name="th_action_download_self_contracts" type="object" string="Tải HĐ CTV nộp"/>
+                    <button name="th_action_download_final_contracts" type="object" string="Tải HĐ hoàn tất"/>
+                </header>
+                <field name="th_code"/>
+                <field name="name"/>
+                <field name="th_collaborator_id"/>
+                <field name="th_phone" optional="show"/>
+                <field name="th_contract_type_ids" widget="many2many_tags" options="{'color_field': 'th_color'}" optional="show"/>
+                <field name="date_start" optional="hide"/>
+                <field name="date_end" optional="hide"/>
+                <!-- 3 cột phân biệt rõ 3 loại tệp hợp đồng -->
+                <field name="th_company_file_name" string="HĐ BOF cung cấp"/>
+                <field name="th_self_file_name" string="HĐ CTV nộp"/>
+                <field name="th_final_file_name" string="HĐ đủ 2 chữ ký"/>
+                <!-- Trạng thái xác nhận và tiến độ -->
+                <field name="th_is_valid_confirmed" widget="boolean_toggle" string="Đã xác nhận"/>
+                <field name="th_confirmation_status" widget="badge"
+                       decoration-secondary="th_confirmation_status == 'draft'"
+                       decoration-warning="th_confirmation_status in ('waiting_upload', 'submitted')"
+                       decoration-info="th_confirmation_status == 'valid'"
+                       decoration-success="th_confirmation_status == 'completed'"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'open'"
+                       decoration-warning="state == 'submitted'"
+                       decoration-success="state == 'close'"
+                       decoration-danger="state == 'cancel'"/>
+                <field name="th_last_history_note" string="Lịch sử thao tác" optional="show"/>
+                <!-- Nút thao tác trên từng dòng -->
+                <button name="th_action_download_single_company_file" type="object" icon="fa-file-text-o"
+                        title="Tải tệp BOF cung cấp" attrs="{'invisible': [('th_company_file_name', '=', 'Chưa có file')]}"/>
+                <button name="th_action_download_single_self_file" type="object" icon="fa-upload"
+                        title="Tải tệp CTV nộp" class="text-primary" attrs="{'invisible': [('th_self_file_name', '=', 'Chưa nộp')]}"/>
+                <button name="th_action_download_single_final_file" type="object" icon="fa-check-circle"
+                        title="Tải tệp hoàn tất 2 chữ ký" class="text-success" attrs="{'invisible': [('th_final_file_name', '=', 'Chưa có')]}"/>
+                <button name="action_open_contract_form" type="object" icon="fa-history"
+                        title="Xem lịch sử thao tác và chi tiết" class="text-muted"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Kanban View Hợp đồng CTV -->
+    <record id="th_collaborator_contract_kanban_view" model="ir.ui.view">
+        <field name="name">th.collaborator.contract.kanban</field>
+        <field name="model">th.collaborator.contract</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column" quick_create="false">
+                <field name="id"/>
+                <field name="name"/>
+                <field name="th_code"/>
+                <field name="th_collaborator_id"/>
+                <field name="user_id"/>
+                <field name="th_batch_date"/>
+                <field name="date_start"/>
+                <field name="date_end"/>
+                <field name="state"/>
+                <field name="th_contract_type_ids"/>
+                <field name="th_confirmation_status"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div t-attf-class="oe_kanban_global_click o_kanban_record">
+                            <div class="o_kanban_record_top mb-1">
+                                <div class="o_kanban_record_headings">
+                                    <strong class="o_kanban_record_title text-primary"><field name="th_code"/></strong>
+                                    <div class="text-muted"><field name="name"/></div>
+                                </div>
+                            </div>
+                            <div class="o_kanban_record_body mb-2">
+                                <div><strong>CTV:</strong> <field name="th_collaborator_id"/></div>
+                                <div t-if="record.th_batch_date.raw_value" class="text-muted small">
+                                    Ngày đẩy: <field name="th_batch_date"/>
+                                </div>
+                                <div class="mt-1">
+                                    <field name="th_contract_type_ids" widget="many2many_tags" options="{'color_field': 'th_color'}"/>
+                                </div>
+                            </div>
+                            <div class="o_kanban_record_bottom">
+                                <div class="oe_kanban_bottom_left">
+                                    <field name="state" widget="label_selection"
+                                           options="{'classes': {'draft': 'default', 'open': 'info', 'submitted': 'warning', 'close': 'success', 'cancel': 'danger'}}"/>
+                                </div>
+                                <div class="oe_kanban_bottom_right">
+                                    <field name="user_id" widget="many2one_avatar_user"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Form View Hợp đồng CTV -->
+    <record id="th_collaborator_contract_form_view" model="ir.ui.view">
+        <field name="name">th.collaborator.contract.form</field>
+        <field name="model">th.collaborator.contract</field>
+        <field name="arch" type="xml">
+            <form string="Hợp đồng CTV">
+                <header>
+                    <button name="th_action_send_contract_mail" type="object" string="Gửi mail hợp đồng" class="oe_highlight"
+                            attrs="{'invisible': ['|', ('th_mail_sent_date', '!=', False), ('th_company_attachment_ids', '=', [])]}"/>
+                    <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail"
+                            attrs="{'invisible': ['|', ('th_mail_sent_date', '=', False), ('th_company_attachment_ids', '=', [])]}"
+                            confirm="Hợp đồng này đã được gửi mail trước đó. Bạn có chắc muốn gửi lại?"/>
+                    <button name="action_confirm_contract_valid" type="object" string="Xác nhận hợp lệ" class="btn-success"
+                            attrs="{'invisible': ['|', ('state', '!=', 'submitted'), ('th_is_valid_confirmed', '=', True)]}"/>
+                    <button name="th_action_send_final_contract_mail" type="object" string="Gửi trả HĐ đủ 2 chữ ký" class="btn-primary"
+                            attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'open')), ('th_final_attachment_id', '=', False)]}"/>
+                    <button name="action_set_open" type="object" string="Đang thực hiện" states="draft" class="btn-secondary"/>
+                    <button name="action_set_submitted" type="object" string="Đã nộp" states="open" class="btn-secondary"/>
+                    <button name="action_set_close" type="object" string="Hoàn tất" states="open,submitted" class="btn-secondary"/>
+                    <button name="action_set_cancel" type="object" string="Hủy" states="draft,open,submitted" class="btn-secondary"/>
+                    <button name="action_set_draft" type="object" string="Về dự thảo" states="cancel" class="btn-secondary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,open,submitted,close"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-danger" role="alert" attrs="{'invisible': [('th_mail_error', '=', False)]}">
+                        <strong>Lỗi gửi email: </strong><field name="th_mail_error" readonly="1" class="d-inline"/>
+                    </div>
+                    <div class="alert alert-success d-flex align-items-center mb-2" role="alert" attrs="{'invisible': [('th_is_valid_confirmed', '=', False)]}">
+                        <span>Đã xác nhận hợp lệ bởi <field name="th_valid_confirmed_user_id" readonly="1" class="fw-bold d-inline"/> vào ngày <field name="th_valid_confirmed_date" readonly="1" class="d-inline"/>.</span>
+                    </div>
+                    <div class="oe_title">
+                        <label for="th_code" class="oe_edit_only"/>
+                        <h2><field name="th_code" placeholder="Mã hợp đồng" required="1"/></h2>
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name" placeholder="Tên hợp đồng" required="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="th_collaborator_id" options="{'no_create_edit': True}"/>
+                            <field name="th_phone" widget="phone"/>
+                            <field name="th_email" widget="email"/>
+                            <field name="user_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="th_contract_type_ids" widget="many2many_tags"
+                                   options="{'color_field': 'th_color', 'no_create': True, 'no_create_edit': True}"/>
+                        </group>
+                        <group>
+                            <field name="th_batch_date"/>
+                            <field name="date_start"/>
+                            <field name="date_end"/>
+                            <field name="th_confirmation_status" widget="badge"/>
+                            <field name="th_is_signed" readonly="1"/>
+                            <field name="th_mail_sent_date" readonly="1"/>
+                            <field name="th_last_upload_date" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Hợp đồng công ty (BOF cung cấp)" name="th_company_contract">
+                            <field name="th_company_attachment_ids" widget="many2many_binary"
+                                   options="{'accepted_file_extensions': '.pdf,.jpg,.jpeg,.png'}"/>
+                        </page>
+                        <page string="Hợp đồng CTV nộp lại" name="th_self_contract">
+                            <field name="th_self_attachment_ids" widget="many2many_binary"
+                                   options="{'accepted_file_extensions': '.pdf,.jpg,.jpeg,.png'}"/>
+                        </page>
+                        <page string="Hợp đồng hoàn tất đủ 2 chữ ký" name="th_final_contract">
+                            <group>
+                                <field name="th_final_attachment_id" widget="many2one_binary"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View Hợp đồng CTV -->
+    <record id="th_collaborator_contract_search_view" model="ir.ui.view">
+        <field name="name">th.collaborator.contract.search</field>
+        <field name="model">th.collaborator.contract</field>
+        <field name="arch" type="xml">
+            <search string="Tìm kiếm hợp đồng">
+                <field name="th_code"/>
+                <field name="name"/>
+                <field name="th_collaborator_id"/>
+                <field name="th_phone"/>
+                <field name="user_id"/>
+                <field name="th_batch_date"/>
+                <filter name="filter_state_draft" string="Dự thảo" domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_state_open" string="Đang thực hiện" domain="[('state', '=', 'open')]"/>
+                <filter name="filter_state_submitted" string="Đã nộp" domain="[('state', '=', 'submitted')]"/>
+                <filter name="filter_state_close" string="Hoàn tất" domain="[('state', '=', 'close')]"/>
+                <separator/>
+                <filter name="filter_valid_confirmed" string="Đã duyệt hợp lệ" domain="[('th_is_valid_confirmed', '=', True)]"/>
+                <filter name="filter_waiting_valid" string="Chờ duyệt hợp lệ" domain="[('th_is_valid_confirmed', '=', False), ('state', '=', 'submitted')]"/>
+                <filter name="filter_has_final" string="Đã có bản 2 chữ ký" domain="[('th_final_attachment_id', '!=', False)]"/>
+                <separator/>
+                <filter name="filter_mail_sent" string="Đã gửi mail" domain="[('th_mail_sent_date', '!=', False)]"/>
+                <filter name="filter_mail_error" string="Lỗi gửi mail" domain="[('th_mail_error', '!=', False)]"/>
+                <separator/>
+                <filter name="filter_uploaded" string="CTV đã nộp file" domain="[('th_self_attachment_ids', '!=', False)]"/>
+                <filter name="filter_not_uploaded" string="Chưa nộp file" domain="[('th_self_attachment_ids', '=', False), ('state', '=', 'open')]"/>
+                <filter name="filter_expired" string="Quá hạn nộp" domain="[('date_end', '&lt;', context_today().strftime('%Y-%m-%d')), ('state', '=', 'open')]"/>
+                <group expand="0" string="Gom nhóm">
+                    <filter name="group_collaborator" string="Cộng tác viên" context="{'group_by': 'th_collaborator_id'}"/>
+                    <filter name="group_user" string="Người phụ trách" context="{'group_by': 'user_id'}"/>
+                    <filter name="group_batch_date" string="Ngày đẩy hợp đồng" context="{'group_by': 'th_batch_date'}"/>
+                    <filter name="group_confirmation_status" string="Tiến độ hợp đồng" context="{'group_by': 'th_confirmation_status'}"/>
+                    <filter name="group_state" string="Trạng thái" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action Hợp đồng CTV -->
+    <record id="th_collaborator_contract_action" model="ir.actions.act_window">
+        <field name="name">Hợp đồng CTV</field>
+        <field name="res_model">th.collaborator.contract</field>
+        <field name="view_mode">tree,kanban,form</field>
+        <field name="search_view_id" ref="th_collaborator_contract_search_view"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tạo hợp đồng cộng tác viên mới
+            </p>
+            <p>
+                Quản lý vòng đời hợp đồng, gửi email mời CTV ký và tiếp nhận file hợp đồng trực tuyến.
+            </p>
+        </field>
+    </record>
+</odoo>

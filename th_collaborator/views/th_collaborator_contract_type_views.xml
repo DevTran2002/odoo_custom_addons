@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="th_collaborator_contract_type_tree_view" model="ir.ui.view">
+        <field name="name">th.collaborator.contract.type.tree</field>
+        <field name="model">th.collaborator.contract.type</field>
+        <field name="arch" type="xml">
+            <tree string="Loại hợp đồng" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name" required="1"/>
+                <field name="th_color" widget="color_picker"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="th_collaborator_contract_type_search_view" model="ir.ui.view">
+        <field name="name">th.collaborator.contract.type.search</field>
+        <field name="model">th.collaborator.contract.type</field>
+        <field name="arch" type="xml">
+            <search string="Loại hợp đồng">
+                <field name="name"/>
+                <filter name="th_filter_archived" string="Đã lưu trữ" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="th_collaborator_contract_type_action" model="ir.actions.act_window">
+        <field name="name">Loại hợp đồng</field>
+        <field name="res_model">th.collaborator.contract.type</field>
+        <field name="view_mode">tree</field>
+        <field name="search_view_id" ref="th_collaborator_contract_type_search_view"/>
+    </record>
+</odoo>

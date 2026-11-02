@@ -1,0 +1,545 @@
+# -*- coding: utf-8 -*-
+import io
+import logging
+import os
+import re
+
+from odoo import _, api, fields, models
+from odoo.exceptions import UserError, ValidationError
+from odoo.fields import Command
+from odoo.tools.mimetypes import guess_mimetype
+
+_logger = logging.getLogger(__name__)
+
+TH_CONTRACT_ALLOWED_EXTENSIONS = ('.pdf', '.jpg', '.jpeg', '.png')
+
+
+class ThCollaboratorContract(models.Model):
+    """Quản lý hợp đồng và biên bản nghiệm thu của Cộng tác viên trong Phase 1.
+
+    Một CTV có thể sở hữu nhiều hợp đồng cùng có hiệu lực (state = 'open')
+    đồng thời tại cùng một thời điểm mà không bị giới hạn.
+    """
+    _name = 'th.collaborator.contract'
+    _description = 'Hợp đồng cộng tác viên'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _order = 'id desc'
+
+    @api.model
+    def _default_user_id(self):
+        """Mặc định người phụ trách hợp đồng là người dùng hiện tại."""
+        return self.env.user
+
+    name = fields.Char(string='Tên hợp đồng', required=True, tracking=True)
+    th_code = fields.Char(string='Mã hợp đồng', required=True, index=True, copy=False, tracking=True)
+    th_collaborator_id = fields.Many2one(
+        'th.collaborator.profile', string='Cộng tác viên',
+        required=True, index=True, ondelete='restrict', tracking=True)
+    user_id = fields.Many2one(
+        'res.users', string='Người phụ trách', tracking=True,
+        default=lambda self: self._default_user_id())
+    th_phone = fields.Char(
+        string='Số điện thoại', related='th_collaborator_id.th_phone', store=True, readonly=True)
+    th_email = fields.Char(
+        string='Email', related='th_collaborator_id.th_email', store=True, readonly=True)
+    th_batch_date = fields.Date(
+        string='Ngày đẩy hợp đồng', default=fields.Date.context_today, index=True, tracking=True)
+    th_contract_type_ids = fields.Many2many(
+        'th.collaborator.contract.type', 'th_collaborator_contract_type_rel',
+        'th_contract_id', 'th_contract_type_id', string='Loại hợp đồng')
+    date_start = fields.Date(string='Ngày bắt đầu', tracking=True)
+    date_end = fields.Date(string='Ngày kết thúc', tracking=True)
+    state = fields.Selection([
+        ('draft', 'Dự thảo'),
+        ('open', 'Đang thực hiện'),
+        ('submitted', 'Đã nộp'),
+        ('close', 'Hoàn tất'),
+        ('cancel', 'Đã hủy'),
+    ], string='Trạng thái', default='draft', tracking=True)
+
+    th_is_signed = fields.Boolean(
+        string='Đã ký/nộp', compute='_compute_is_signed', store=True, tracking=True)
+    th_mail_error = fields.Text(string='Lỗi gửi mail', copy=False, tracking=True)
+
+    # ------------------------------------------------------------------
+    # Phân loại tệp hợp đồng & Trạng thái xác nhận 2 bên
+    # ------------------------------------------------------------------
+    th_company_attachment_ids = fields.Many2many(
+        'ir.attachment', 'th_collaborator_contract_company_attachment_rel',
+        'th_contract_id', 'th_attachment_id', string='Hợp đồng công ty')
+    th_self_attachment_ids = fields.Many2many(
+        'ir.attachment', 'th_collaborator_contract_self_attachment_rel',
+        'th_contract_id', 'th_attachment_id', string='Hợp đồng CTV tải lên')
+    th_final_attachment_id = fields.Many2one(
+        'ir.attachment', string='Hợp đồng hoàn tất đủ 2 chữ ký', copy=False)
+    th_mail_sent_date = fields.Datetime(string='Ngày gửi mail', copy=False)
+    th_last_upload_date = fields.Datetime(string='Ngày CTV tải lên', copy=False)
+
+    th_company_file_name = fields.Char(
+        string='HĐ BOF cung cấp', compute='_compute_contract_file_info', store=True)
+    th_self_file_name = fields.Char(
+        string='HĐ CTV nộp', compute='_compute_contract_file_info', store=True)
+    th_final_file_name = fields.Char(
+        string='HĐ đủ 2 chữ ký', compute='_compute_contract_file_info', store=True)
+
+    th_is_valid_confirmed = fields.Boolean(
+        string='Đã xác nhận hợp lệ', default=False, copy=False, tracking=True)
+    th_valid_confirmed_date = fields.Datetime(
+        string='Ngày xác nhận hợp lệ', copy=False)
+    th_valid_confirmed_user_id = fields.Many2one(
+        'res.users', string='Người xác nhận', copy=False)
+
+    th_confirmation_status = fields.Selection([
+        ('draft', 'Chờ phát hành'),
+        ('waiting_upload', 'Chờ CTV nộp'),
+        ('submitted', 'Chờ BOF duyệt'),
+        ('valid', 'Đã duyệt hợp lệ'),
+        ('completed', 'Đủ 2 chữ ký'),
+    ], string='Tiến độ hợp đồng', compute='_compute_confirmation_status', store=True)
+
+    th_last_history_note = fields.Char(
+        string='Lịch sử thao tác', compute='_compute_last_history_note')
+
+    _sql_constraints = [
+        ('th_code_uniq', 'unique(th_code)', 'Mã hợp đồng đã tồn tại trong hệ thống. Vui lòng chọn mã khác.'),
+    ]
+
+    @api.depends('th_self_attachment_ids', 'th_final_attachment_id', 'state')
+    def _compute_is_signed(self):
+        """Xác định trạng thái đã nộp file ký của hợp đồng."""
+        for rec in self:
+            rec.th_is_signed = bool(
+                rec.th_self_attachment_ids or rec.th_final_attachment_id or rec.state in ('submitted', 'close')
+            )
+
+    @api.depends('th_company_attachment_ids', 'th_self_attachment_ids', 'th_final_attachment_id')
+    def _compute_contract_file_info(self):
+        """Tính toán tên hiển thị phân biệt rõ 3 loại tệp hợp đồng trên tree view."""
+        for rec in self:
+            # 1. Tệp BOF tải lên cung cấp
+            company_files = rec.th_company_attachment_ids.mapped('name')
+            if company_files:
+                rec.th_company_file_name = company_files[0] if len(company_files) == 1 else f"{company_files[0]} (+{len(company_files) - 1})"
+            else:
+                rec.th_company_file_name = _('Chưa có file')
+
+            # 2. Tệp CTV nộp lại sau khi ký
+            self_files = rec.th_self_attachment_ids.mapped('name')
+            if self_files:
+                rec.th_self_file_name = self_files[0] if len(self_files) == 1 else f"{self_files[0]} (+{len(self_files) - 1})"
+            else:
+                rec.th_self_file_name = _('Chưa nộp')
+
+            # 3. Tệp hoàn tất đủ 2 chữ ký
+            if rec.th_final_attachment_id:
+                rec.th_final_file_name = rec.th_final_attachment_id.name or _('Đã có bản hoàn tất')
+            else:
+                rec.th_final_file_name = _('Chưa có')
+
+    @api.depends('state', 'th_self_attachment_ids', 'th_is_valid_confirmed', 'th_final_attachment_id')
+    def _compute_confirmation_status(self):
+        """Xác định tiến độ ký kết và xác nhận của cả 2 bên."""
+        for rec in self:
+            if rec.th_final_attachment_id or rec.state == 'close':
+                rec.th_confirmation_status = 'completed'
+            elif rec.th_is_valid_confirmed:
+                rec.th_confirmation_status = 'valid'
+            elif rec.state == 'submitted' or rec.th_self_attachment_ids:
+                rec.th_confirmation_status = 'submitted'
+            elif rec.state == 'open':
+                rec.th_confirmation_status = 'waiting_upload'
+            else:
+                rec.th_confirmation_status = 'draft'
+
+    def _compute_last_history_note(self):
+        """Hiển thị tóm tắt lịch sử thao tác gần nhất của hợp đồng từ chatter."""
+        for rec in self:
+            last_msg = rec.message_ids.filtered(lambda m: m.subtype_id and not m.subtype_id.internal)[:1]
+            if not last_msg:
+                last_msg = rec.message_ids[:1]
+            if last_msg:
+                author_name = last_msg.author_id.name or _('Hệ thống')
+                body_clean = re.sub(r'<[^>]+>', '', last_msg.body or '').strip()
+                if len(body_clean) > 40:
+                    body_clean = body_clean[:37] + '...'
+                rec.th_last_history_note = f"{author_name}: {body_clean}" if body_clean else f"{author_name}"
+            else:
+                rec.th_last_history_note = _('Chưa có thao tác')
+
+    @api.onchange('th_collaborator_id')
+    def _onchange_th_collaborator_id(self):
+        """Tự động đồng bộ người phụ trách từ CTV nếu chưa thiết lập."""
+        if self.th_collaborator_id and self.th_collaborator_id.user_id:
+            self.user_id = self.th_collaborator_id.user_id
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Tạo hợp đồng và gắn file hợp đồng vào đúng bản ghi."""
+        records = super().create(vals_list)
+        records._link_contract_attachments()
+        return records
+
+    def write(self, vals):
+        """Cập nhật hợp đồng và gắn lại file mới thêm vào đúng bản ghi."""
+        res = super().write(vals)
+        if 'th_company_attachment_ids' in vals or 'th_self_attachment_ids' in vals or 'th_final_attachment_id' in vals:
+            self._link_contract_attachments()
+        return res
+
+    def _link_contract_attachments(self):
+        """Gắn res_model và res_id cho file hợp đồng để phân quyền chặt chẽ."""
+        for rec in self:
+            all_attachments = rec.th_company_attachment_ids | rec.th_self_attachment_ids
+            if rec.th_final_attachment_id:
+                all_attachments |= rec.th_final_attachment_id
+            attachments = all_attachments.filtered(
+                lambda att: att.res_model != rec._name or att.res_id != rec.id)
+            if attachments:
+                attachments.write({'res_model': rec._name, 'res_id': rec.id})
+
+    def action_set_draft(self):
+        """Chuyển hợp đồng về trạng thái dự thảo."""
+        self.write({'state': 'draft'})
+
+    def action_set_open(self):
+        """Kích hoạt hợp đồng sang trạng thái đang thực hiện."""
+        self.write({'state': 'open'})
+
+    def action_set_submitted(self):
+        """Chuyển hợp đồng sang trạng thái đã nộp."""
+        self.write({'state': 'submitted'})
+
+    def action_set_close(self):
+        """Kết thúc hợp đồng sang trạng thái hoàn tất."""
+        self.write({'state': 'close'})
+
+    def action_set_cancel(self):
+        """Hủy hợp đồng."""
+        self.write({'state': 'cancel'})
+
+    def action_confirm_contract_valid(self):
+        """Nhân viên kiểm tra và xác nhận file hợp đồng CTV nộp hợp lệ."""
+        self.ensure_one()
+        if not self.th_self_attachment_ids:
+            raise UserError(_('Hợp đồng chưa có file do CTV tải lên để xác nhận.'))
+        self.write({
+            'th_is_valid_confirmed': True,
+            'th_valid_confirmed_date': fields.Datetime.now(),
+            'th_valid_confirmed_user_id': self.env.user.id,
+        })
+        self.message_post(body=_('Nhân viên %s đã kiểm tra và xác nhận hợp đồng hợp lệ.') % self.env.user.name)
+        return True
+
+    def action_open_contract_form(self):
+        """Mở form chi tiết và xem lịch sử thao tác (chatter) của hợp đồng này."""
+        self.ensure_one()
+        return {
+            'name': _('Hợp đồng %s') % (self.th_code or self.name),
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    # ------------------------------------------------------------------
+    # Tệp đính kèm CTV tải lên
+    # ------------------------------------------------------------------
+
+    def _build_self_contract_file_names(self, original_names):
+        """Đặt tên hợp đồng CTV theo dạng SĐT_MãHĐ_Tên.<đuôi gốc> để dễ tra cứu."""
+        self.ensure_one()
+        phone = self.th_collaborator_id.th_phone_normalized or ''
+        code = self.th_code or ''
+        name = self.name or ''
+        base_name = re.sub(r'[\\/:*?"<>|]+', '_', f'{phone}_{code}_{name}').strip()
+        file_names = []
+        for index, original_name in enumerate(original_names, start=1):
+            extension = os.path.splitext(original_name or '')[1].lower()
+            suffix = f'_{index}' if len(original_names) > 1 else ''
+            file_names.append(f'{base_name}{suffix}{extension}')
+        return file_names
+
+    def _add_self_contracts(self, files):
+        """Lưu hợp đồng do CTV tự tải lên qua link portal.
+
+        Ghi đè nội dung nếu tệp cùng tên đã tồn tại để lưu giữ bản cuối cùng.
+        Tự động chuyển trạng thái hợp đồng sang Đã nộp (submitted).
+        :param files: list tuple (tên file, nội dung bytes)
+        """
+        self.ensure_one()
+        Attachment = self.env['ir.attachment']
+        existing_attachments = {att.name: att for att in self.th_self_attachment_ids}
+        file_names = self._build_self_contract_file_names([file_name for file_name, dummy in files])
+
+        result_attachments = self.env['ir.attachment']
+        commands = []
+        for file_name, (dummy, content) in zip(file_names, files):
+            if file_name in existing_attachments:
+                att = existing_attachments[file_name]
+                att.write({'raw': content})
+                result_attachments |= att
+            else:
+                att = Attachment.create({
+                    'name': file_name,
+                    'raw': content,
+                    'res_model': self._name,
+                    'res_id': self.id,
+                })
+                commands.append(Command.link(att.id))
+                result_attachments |= att
+
+        vals = {
+            'th_last_upload_date': fields.Datetime.now(),
+            'state': 'submitted',
+        }
+        if commands:
+            vals['th_self_attachment_ids'] = commands
+        self.write(vals)
+        self.message_post(
+            body=_('CTV đã tải lên %s file hợp đồng: %s. Trạng thái chuyển sang Đã nộp.') % (
+                len(result_attachments), ', '.join(result_attachments.mapped('name'))),
+            subtype_xmlid='mail.mt_comment')
+        _logger.info('Collaborator contract %s: uploaded %s file(s)', self.id, len(result_attachments))
+        return result_attachments
+
+    # ------------------------------------------------------------------
+    # Gửi Email Hợp đồng
+    # ------------------------------------------------------------------
+
+    def th_action_send_contract_mail(self):
+        """Nút gửi mail hợp đồng trên form chi tiết."""
+        self.ensure_one()
+        if not self.th_email:
+            raise UserError(_('CTV chưa có địa chỉ email để gửi hợp đồng.'))
+        if not self.th_company_attachment_ids:
+            raise UserError(_('Hợp đồng chưa có file công ty đính kèm để gửi.'))
+        if not self.user_id.email:
+            raise UserError(_('Người phụ trách chưa có địa chỉ email để làm hòm thư phát hành.'))
+
+        default_template = self.env.ref(
+            'th_collaborator.th_collaborator_profile_send_mail_template', raise_if_not_found=False)
+        if not default_template:
+            default_template = self.env.ref(
+                'th_collaborator.th_collaborator_profile_upload_mail_template', raise_if_not_found=False)
+        if not default_template:
+            raise UserError(_('Không tìm thấy mẫu email gửi hợp đồng.'))
+
+        default_template.send_mail(self.id, force_send=True, email_values={
+            'email_from': self.user_id.email_formatted,
+            'reply_to': self.user_id.email_formatted,
+            'attachment_ids': self.th_company_attachment_ids.ids,
+        })
+        vals = {
+            'th_mail_sent_date': fields.Datetime.now(),
+            'th_mail_error': False,
+        }
+        if self.state == 'draft':
+            vals['state'] = 'open'
+        self.write(vals)
+        self.message_post(body=_('Đã phát hành email hợp đồng thành công cho CTV: %s') % self.th_email)
+        return True
+
+    def th_action_send_contract_mail_batch(self):
+        """Gửi mail hợp đồng hàng loạt cho các hợp đồng được chọn trên danh sách.
+
+        Không làm gián đoạn cả đợt nếu có bản ghi thiếu dữ liệu;
+        Lưu vết lỗi trên từng bản ghi và trả về bảng kết quả chi tiết.
+        """
+        if not self:
+            raise UserError(_('Vui lòng chọn ít nhất một hợp đồng để gửi mail.'))
+
+        default_template = self.env.ref(
+            'th_collaborator.th_collaborator_profile_send_mail_template', raise_if_not_found=False)
+        if not default_template:
+            default_template = self.env.ref(
+                'th_collaborator.th_collaborator_profile_upload_mail_template', raise_if_not_found=False)
+        if not default_template:
+            raise UserError(_('Không tìm thấy mẫu email gửi hợp đồng.'))
+
+        success_records = self.env['th.collaborator.contract']
+        failed_records = []
+
+        for rec in self:
+            error_msg = False
+            if not rec.th_email:
+                error_msg = _('CTV chưa có địa chỉ email.')
+            elif not rec.th_company_attachment_ids:
+                error_msg = _('Hợp đồng chưa có file công ty đính kèm.')
+            elif not rec.user_id.email:
+                error_msg = _('Người phụ trách chưa có địa chỉ email.')
+
+            if error_msg:
+                rec.write({'th_mail_error': error_msg})
+                failed_records.append((rec, error_msg))
+                continue
+
+            try:
+                default_template.send_mail(rec.id, force_send=True, email_values={
+                    'email_from': rec.user_id.email_formatted,
+                    'reply_to': rec.user_id.email_formatted,
+                    'attachment_ids': rec.th_company_attachment_ids.ids,
+                })
+                vals = {
+                    'th_mail_sent_date': fields.Datetime.now(),
+                    'th_mail_error': False,
+                }
+                if rec.state == 'draft':
+                    vals['state'] = 'open'
+                rec.write(vals)
+                rec.message_post(body=_('Đã phát hành email hợp đồng thành công cho CTV: %s') % rec.th_email)
+                success_records |= rec
+            except Exception as e:
+                err_detail = str(e)
+                rec.write({'th_mail_error': err_detail})
+                failed_records.append((rec, err_detail))
+
+        summary_lines = [
+            _('Tổng kết gửi mail: Thành công %s/%s hợp đồng.') % (len(success_records), len(self))
+        ]
+        if failed_records:
+            summary_lines.append(_('\nDanh sách thất bại (%s):') % len(failed_records))
+            for contract, reason in failed_records[:10]:
+                summary_lines.append(f"- {contract.th_code or contract.name} ({contract.th_collaborator_id.name}): {reason}")
+            if len(failed_records) > 10:
+                summary_lines.append(_('- ... và %s hợp đồng khác.') % (len(failed_records) - 10))
+
+        message = '\n'.join(summary_lines)
+        _logger.info('Batch mail sent: %s success, %s failed', len(success_records), len(failed_records))
+
+        notify_type = 'success' if not failed_records else ('warning' if success_records else 'danger')
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Kết quả gửi email hợp đồng'),
+                'type': notify_type,
+                'message': message,
+                'sticky': bool(failed_records),
+                'next': {'type': 'ir.actions.act_window_close'},
+            },
+        }
+
+    def th_action_send_final_contract_mail(self):
+        """Gửi trả bản hợp đồng đã có đủ chữ ký hai bên cho CTV qua email."""
+        self.ensure_one()
+        if not self.th_final_attachment_id:
+            raise UserError(_('Vui lòng tải lên tệp hợp đồng hoàn tất đã đủ 2 chữ ký trước khi gửi trả CTV.'))
+        if not self.th_email:
+            raise UserError(_('CTV chưa có địa chỉ email để gửi hợp đồng.'))
+
+        # sudo: Hệ thống tự động tạo và phát hành email trả file hoàn tất cho CTV
+        mail_values = {
+            'subject': _('[%s] HỢP ĐỒNG HOÀN TẤT ĐỦ CHỮ KÝ - %s') % (self.env.company.name, self.name),
+            'body_html': _(
+                '<p>Kính gửi Anh/Chị <strong>%s</strong>,</p>'
+                '<p>Công ty xin gửi lại Anh/Chị bản hợp đồng <strong>"%s"</strong> (Mã: <strong>%s</strong>) '
+                'đã có đầy đủ chữ ký của hai bên trong tệp đính kèm để Anh/Chị lưu trữ.</p>'
+                '<p>Trân trọng cảm ơn sự hợp tác của Anh/Chị!</p>'
+            ) % (self.th_collaborator_id.name, self.name, self.th_code),
+            'email_from': self.user_id.email_formatted or self.env.company.email,
+            'reply_to': self.user_id.email_formatted or self.env.company.email,
+            'email_to': self.th_email,
+            'attachment_ids': [Command.link(self.th_final_attachment_id.id)],
+        }
+        mail = self.env['mail.mail'].sudo().create(mail_values)
+        mail.send()
+        self.write({'state': 'close'})
+        self.message_post(body=_('Đã gửi trả hợp đồng hoàn tất "%s" cho CTV qua email và chuyển trạng thái sang Hoàn tất.') % self.th_final_attachment_id.name)
+        return True
+
+    # ------------------------------------------------------------------
+    # Tải file Hợp đồng trực tiếp
+    # ------------------------------------------------------------------
+
+    def _get_download_contract_action(self, contract_type):
+        """Tải trực tiếp file hợp đồng về máy theo chuẩn đặt tên [stt].AUM-HĐDVTT/[Tên CTV]."""
+        if not self:
+            raise UserError(_('Vui lòng chọn ít nhất 1 hợp đồng.'))
+        contract = self[0]
+        if contract_type == 'company':
+            attachments = contract.th_company_attachment_ids
+        elif contract_type == 'self':
+            attachments = contract.th_self_attachment_ids
+        else:
+            attachments = contract.th_final_attachment_id
+
+        if not attachments:
+            raise UserError(_('Hợp đồng "%s" chưa có file để tải về.') % contract.name)
+
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f'/th_collaborator/download_file?contract_id={contract.id}&contract_type={contract_type}&stt=1',
+            'target': 'self',
+        }
+
+    def th_action_download_company_contracts(self):
+        """Tải file hợp đồng công ty trực tiếp về máy."""
+        return self._get_download_contract_action('company')
+
+    def th_action_download_self_contracts(self):
+        """Tải file hợp đồng CTV nộp trực tiếp về máy."""
+        return self._get_download_contract_action('self')
+
+    def th_action_download_final_contracts(self):
+        """Tải file hợp đồng hoàn tất đủ chữ ký trực tiếp về máy."""
+        return self._get_download_contract_action('final')
+
+    def th_action_download_single_company_file(self):
+        """Tải file hợp đồng BOF cung cấp của dòng hiện tại."""
+        self.ensure_one()
+        return self._get_download_contract_action('company')
+
+    def th_action_download_single_self_file(self):
+        """Tải file hợp đồng CTV nộp của dòng hiện tại."""
+        self.ensure_one()
+        return self._get_download_contract_action('self')
+
+    def th_action_download_single_final_file(self):
+        """Tải file hợp đồng hoàn tất đủ 2 chữ ký của dòng hiện tại."""
+        self.ensure_one()
+        return self._get_download_contract_action('final')
+
+    # ------------------------------------------------------------------
+    # Cron Job nhắc nhở hợp đồng
+    # ------------------------------------------------------------------
+
+    @api.model
+    def th_cron_send_contract_reminders(self):
+        """Cron job hằng ngày: Quét hợp đồng đang thực hiện gần đến hạn hoặc quá hạn nộp để gửi email nhắc nhở."""
+        today = fields.Date.context_today(self)
+        contracts = self.search([
+            ('state', '=', 'open'),
+            ('th_self_attachment_ids', '=', False),
+            ('date_end', '!=', False),
+            ('th_email', '!=', False),
+        ])
+        reminder_template = self.env.ref(
+            'th_collaborator.th_collaborator_contract_reminder_mail_template', raise_if_not_found=False)
+        if not reminder_template:
+            _logger.warning('Không tìm thấy mẫu email nhắc nhở th_collaborator_contract_reminder_mail_template')
+            return False
+
+        reminded_count = 0
+        for contract in contracts:
+            days_diff = (contract.date_end - today).days
+            # Gửi nhắc nhở khi còn 3 ngày đến hạn hoặc đã quá hạn
+            if days_diff <= 3:
+                try:
+                    email_values = {
+                        'email_from': contract.user_id.email_formatted or self.env.company.email,
+                        'reply_to': contract.user_id.email_formatted or self.env.company.email,
+                        'email_to': contract.th_email,
+                        'email_cc': contract.user_id.email if contract.user_id.email else False,
+                    }
+                    reminder_template.send_mail(contract.id, force_send=True, email_values=email_values)
+                    contract.message_post(
+                        body=_('Hệ thống đã tự động gửi email nhắc nhở nộp hợp đồng cho CTV (Hạn kết thúc: %s).')
+                        % contract.date_end.strftime('%d/%m/%Y')
+                    )
+                    reminded_count += 1
+                except Exception as e:
+                    _logger.error('Lỗi khi gửi mail nhắc nhở hợp đồng %s: %s', contract.id, str(e))
+
+        _logger.info('Cron th_cron_send_contract_reminders hoàn thành: %s hợp đồng được nhắc nhở.', reminded_count)
+        return True

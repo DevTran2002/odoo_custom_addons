@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="th_module_category_collaborator" model="ir.module.category">
+        <field name="name">Cộng tác viên</field>
+        <field name="sequence">50</field>
+    </record>
+
+    <!-- Access Group: nơi duy nhất được cấp ACL -->
+    <record id="th_access_collaborator_user" model="res.groups">
+        <field name="name">[Access] CTV - Nhân viên</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+    </record>
+
+    <!-- Role Group: quyền duy nhất gán cho end-user -->
+    <record id="th_role_collaborator_officer" model="res.groups">
+        <field name="name">Nhân viên quản lý CTV</field>
+        <field name="category_id" ref="th_module_category_collaborator"/>
+        <field name="implied_ids" eval="[(6, 0, [ref('th_access_collaborator_user')])]"/>
+    </record>
+</odoo>

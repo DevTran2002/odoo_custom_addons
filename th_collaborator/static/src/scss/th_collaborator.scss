@@ -1,0 +1,39 @@
+/* Định dạng hiển thị dạng lưới (Grid) cho danh sách tệp tải lên trong popup */
+.th_upload_grid {
+    .o_attachments {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+        gap: 10px !important;
+        margin-bottom: 12px !important;
+    }
+
+    .o_attachment {
+        width: 100% !important;
+        max-width: 100% !important;
+        float: none !important;
+        margin: 0 !important;
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 6px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+        &:hover {
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .o_attachment_wrap {
+            padding: 6px 8px;
+        }
+
+        .caption {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
+    .oe_add {
+        margin-top: 10px;
+    }
+}
+

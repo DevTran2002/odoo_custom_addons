@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="th_collaborator_upload_wizard_form_view" model="ir.ui.view">
+        <field name="name">th.collaborator.upload.wizard.form</field>
+        <field name="model">th.collaborator.upload.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Nạp hợp đồng hàng loạt">
+                <style>
+                    .th_upload_grid .o_attachments {
+                        display: grid !important;
+                        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+                        gap: 10px !important;
+                        margin-bottom: 12px !important;
+                    }
+                    .th_upload_grid .o_attachment {
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        float: none !important;
+                        margin: 0 !important;
+                        background-color: #ffffff !important;
+                        border: 1px solid #e2e8f0 !important;
+                        border-radius: 6px !important;
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                    }
+                    .th_upload_scroll_container {
+                        max-height: 380px;
+                        overflow-y: auto;
+                        overflow-x: hidden;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 8px;
+                        padding: 12px;
+                        background-color: #f8fafc;
+                    }
+                </style>
+                <field name="th_is_done" invisible="1"/>
+                <div attrs="{'invisible': [('th_is_done', '=', True)]}">
+                    <group>
+                        <group string="Cấu hình nạp">
+                            <field name="th_mode" widget="radio" required="1"/>
+                        </group>
+                        <group string="Thông tin đợt hợp đồng" attrs="{'invisible': [('th_mode', '!=', 'add')]}">
+                            <field name="th_batch_date" attrs="{'required': [('th_mode', '=', 'add')]}"/>
+                            <field name="th_contract_type_ids" widget="many2many_tags"
+                                   options="{'color_field': 'th_color', 'no_create': True, 'no_create_edit': True}"/>
+                        </group>
+                    </group>
+
+                    <!-- Hướng dẫn cho Chế độ Bổ sung HĐ mới -->
+                    <div class="alert alert-info mt-2 mb-3" role="alert" attrs="{'invisible': [('th_mode', '!=', 'add')]}">
+                        <div class="fw-bold mb-1 text-primary">HƯỚNG DẪN BỔ SUNG HỢP ĐỒNG MỚI:</div>
+                        <ul class="mb-0 ps-3">
+                            <li>Quy chuẩn đặt tên tệp: <code>SĐT_MãHĐ_TênHợpĐồng.pdf</code> (ví dụ: <code>0912345678_HD01_HopDongGiangDay.pdf</code>).</li>
+                            <li>Hệ thống tự động tạo hợp đồng mới ở trạng thái <em>Dự thảo</em> theo SĐT và Mã HĐ bóc tách từ tên file.</li>
+                            <li>Mã HĐ không được trùng với các hợp đồng đã tồn tại trong hệ thống.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Hướng dẫn cho Chế độ Thay thế HĐ cũ -->
+                    <div class="alert alert-warning mt-2 mb-3" role="alert" attrs="{'invisible': [('th_mode', '!=', 'replace')]}">
+                        <div class="fw-bold mb-1 text-danger">LƯU Ý BẮT BUỘC KHI THAY THẾ HỢP ĐỒNG CŨ:</div>
+                        <ul class="mb-0 ps-3">
+                            <li>Tên file tải lên <strong>BẮT BUỘC phải trùng với Mã hợp đồng cũ</strong> theo cấu trúc: <code>SĐT_MãHĐ_TênHợpĐồng.pdf</code> (hoặc <code>SĐT_MãHĐ.pdf</code>).</li>
+                            <li><em>Ví dụ đối chiếu:</em> Hợp đồng cũ trong hệ thống có Mã <code>HD01</code> của CTV có SĐT <code>0912345678</code> thì file thay thế phải đặt tên là <code>0912345678_HD01_BanDieuChinh.pdf</code> hoặc <code>0912345678_HD01.pdf</code>.</li>
+                            <li>Hệ thống tra cứu theo <strong>SĐT</strong> và <strong>Mã HĐ</strong> để tìm đúng hợp đồng cũ, thay thế file công ty cũ bằng file mới và lưu lịch sử trong mục Trao đổi (chatter).</li>
+                            <li>Nếu Mã HĐ trong tên file không khớp với bất kỳ hợp đồng nào đã có của CTV, file đó sẽ không thể thay thế và bị báo lỗi.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Danh sách hợp đồng đã chọn cần thay thế (nếu có) -->
+                    <div attrs="{'invisible': ['|', ('th_mode', '!=', 'replace'), ('th_target_contract_ids', '=', [])]}" class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label for="th_target_contract_ids" string="Danh sách hợp đồng cần thay thế đã chọn:" class="fw-bold text-primary mb-0"/>
+                            <span class="text-muted small">Tên file tải lên cần chứa đúng SĐT và Mã HĐ dưới đây</span>
+                        </div>
+                        <field name="th_target_contract_ids" readonly="1">
+                            <tree string="Hợp đồng cần thay thế" no_open="1" create="0" delete="0">
+                                <field name="th_phone" string="SĐT CTV"/>
+                                <field name="th_code" string="Mã hợp đồng"/>
+                                <field name="name" string="Tên hợp đồng"/>
+                                <field name="th_collaborator_id" string="Cộng tác viên"/>
+                                <field name="state" widget="badge"/>
+                            </tree>
+                        </field>
+                    </div>
+
+                    <!-- Khung tải tệp hợp đồng dạng lưới Grid -->
+                    <div class="mt-2">
+                        <label for="th_attachment_ids" string="Danh sách tệp hợp đồng (PDF, JPG, PNG)" class="fw-bold mb-2 text-uppercase text-muted small"/>
+                        <div class="th_upload_scroll_container th_upload_grid">
+                            <field name="th_attachment_ids" widget="many2many_binary" nolabel="1"
+                                   options="{'accepted_file_extensions': '.pdf,.jpg,.jpeg,.png'}"
+                                   attrs="{'required': [('th_is_done', '=', False)]}"/>
+                        </div>
+                    </div>
+                </div>
+
+                <group attrs="{'invisible': [('th_is_done', '=', False)]}">
+                    <field name="th_result_note" nolabel="1" readonly="1"/>
+                </group>
+
+                <footer>
+                    <button name="th_action_import_contracts" type="object" string="Thực hiện nạp file" class="btn-primary"
+                            attrs="{'invisible': [('th_is_done', '=', True)]}"/>
+                    <button string="Đóng" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="th_collaborator_upload_wizard_action" model="ir.actions.act_window">
+        <field name="name">Nạp hợp đồng hàng loạt</field>
+        <field name="res_model">th.collaborator.upload.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="model_th_collaborator_contract"/>
+        <field name="binding_view_types">list</field>
+    </record>
+</odoo>

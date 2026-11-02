@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="th_collaborator_upload_page_template" name="Tải hợp đồng CTV">
+        <t t-call="web.frontend_layout">
+            <t t-set="title">Cổng tải lên hợp đồng cộng tác viên</t>
+            <t t-set="no_header" t-value="True"/>
+            <t t-set="no_footer" t-value="True"/>
+            <div class="container py-5" style="max-width: 720px;">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold">Cổng tải lên hợp đồng cộng tác viên</h2>
+                    <p class="text-muted">
+                        Xin chào <span class="fw-semibold text-primary" t-out="profile.name"/>, vui lòng chọn hợp đồng và tải lên file đã ký hoàn tất.
+                    </p>
+                </div>
+
+                <div t-if="error" class="alert alert-danger" role="alert" t-out="error"/>
+                <div t-if="success" class="alert alert-success" role="alert" t-out="success"/>
+
+                <form t-if="not success" t-attf-action="/th_collaborator/upload/#{token}/submit"
+                      method="post" enctype="multipart/form-data" class="card shadow-sm p-4">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                    <!-- Danh sách các hợp đồng -->
+                    <div t-if="contracts" class="mb-4">
+                        <label class="form-label fw-semibold">Danh sách hợp đồng của bạn</label>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 30px;">Chọn</th>
+                                        <th>Mã HĐ</th>
+                                        <th>Tên hợp đồng</th>
+                                        <th>Trạng thái</th>
+                                        <th>File mẫu</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="contracts" t-as="c">
+                                        <td class="text-center">
+                                            <input type="radio" name="contract_id" t-att-value="c.id"
+                                                   t-att-checked="'checked' if (contract_id == str(c.id) or len(contracts) == 1) else None"
+                                                   required="required"/>
+                                        </td>
+                                        <td class="fw-bold" t-out="c.th_code"/>
+                                        <td t-out="c.name"/>
+                                        <td>
+                                            <span t-if="c.state == 'open'" class="badge bg-info text-dark">Đang thực hiện</span>
+                                            <span t-elif="c.state == 'submitted'" class="badge bg-warning text-dark">Đã nộp</span>
+                                            <span t-elif="c.state == 'close'" class="badge bg-success">Hoàn tất</span>
+                                            <span t-else="" class="badge bg-secondary">Dự thảo / Chờ ký</span>
+                                        </td>
+                                        <td>
+                                            <t t-set="company_att" t-value="c.th_company_attachment_ids and c.th_company_attachment_ids[0]"/>
+                                            <a t-if="company_att" t-attf-href="/web/content/#{company_att.id}?download=true"
+                                               class="btn btn-sm btn-outline-primary" target="_blank">
+                                                Tải file
+                                            </a>
+                                            <span t-else="" class="text-muted small">Chưa có</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Chọn file hợp đồng đã ký -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold" for="th_contract_files">File hợp đồng đã ký <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="th_contract_files" name="th_contract_files"
+                               multiple="multiple" required="required" t-att-accept="th_accept"/>
+                        <div class="form-text">
+                            Chấp nhận định dạng: <t t-out="th_accept"/>. Tối đa <t t-out="th_max_files"/> file, mỗi file không quá <t t-out="th_max_file_size_mb"/>MB.
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100">Gửi hợp đồng</button>
+                </form>
+            </div>
+        </t>
+    </template>
+</odoo>
