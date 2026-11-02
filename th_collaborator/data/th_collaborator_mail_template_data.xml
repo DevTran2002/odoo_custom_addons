@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data noupdate="0">
+    <data noupdate="1">
         <record id="th_collaborator_profile_send_mail_template" model="mail.template">
             <field name="name">CTV: Mời hoàn thiện hợp đồng</field>
             <field name="model_id" ref="model_th_collaborator_contract"/>
@@ -32,9 +32,6 @@
                     Tải lên hợp đồng đã ký
                 </a>
                             </div>
-                            <span style="font-size: 13px; color: #666666;">
-                                <em>(Đường dẫn bảo mật riêng dành cho Anh/Chị, mở trực tiếp không cần đăng nhập).</em>
-                            </span></li>
                         <li style="margin-bottom: 6px;">
             Đồng thời, trong nội dung email phản hồi, Anh/Chị vui lòng xác nhận:
                             <br/>
@@ -122,9 +119,6 @@
                             Tải lên hợp đồng đã ký
                         </a>
                     </div>
-                    <p style="font-size: 13px; color: #666666;">
-                        <em>(Đường dẫn bảo mật riêng dành cho Anh/Chị, mở trực tiếp không cần đăng nhập).</em>
-                    </p>
                     <p>Nếu Anh/Chị đã gửi lại file hoặc có bất kỳ vướng mắc nào, vui lòng phản hồi trực tiếp email này để được hỗ trợ kịp thời.</p>
                     <p>Trân trọng cảm ơn sự phối hợp của Anh/Chị.</p>
                     <p style="margin-top: 24px;">

@@ -59,6 +59,12 @@ class ThCollaboratorContract(models.Model):
         'th_contract_id', 'th_contract_type_id', string='Loại hợp đồng')
     date_start = fields.Date(string='Ngày bắt đầu', tracking=True)
     date_end = fields.Date(string='Ngày kết thúc', tracking=True)
+    th_is_expired = fields.Boolean(
+        string='Đã hết hạn', compute='_compute_expiration_status', store=True, index=True, tracking=True)
+    th_expiration_status = fields.Selection([
+        ('valid', 'Chưa hết hạn'),
+        ('expired', 'Đã hết hạn'),
+    ], string='Thời hạn hợp đồng', compute='_compute_expiration_status', store=True, index=True)
     state = fields.Selection([
         ('draft', 'Dự thảo'),
         ('open', 'Đang thực hiện'),
@@ -142,6 +148,15 @@ class ThCollaboratorContract(models.Model):
                 (new_token, rec_id)
             )
         super()._add_sql_constraints()
+
+    @api.depends('date_start', 'date_end')
+    def _compute_expiration_status(self):
+        """Xác định trạng thái hợp đồng đã hết hạn hay chưa dựa vào ngày kết thúc."""
+        today = fields.Date.context_today(self)
+        for rec in self:
+            is_expired = bool(rec.date_end and rec.date_end < today)
+            rec.th_is_expired = is_expired
+            rec.th_expiration_status = 'expired' if is_expired else 'valid'
 
     @api.depends('th_self_attachment_ids', 'th_final_attachment_id', 'th_document_ids.th_document_type', 'state')
     def _compute_is_signed(self):
@@ -530,6 +545,34 @@ class ThCollaboratorContract(models.Model):
     # Gửi Email Hợp đồng
     # ------------------------------------------------------------------
 
+    @api.model
+    def _get_contract_mail_template(self):
+        """Lấy mẫu email phát hành hợp đồng từ cấu hình hệ thống hoặc fallback về mẫu mặc định."""
+        # sudo: Đọc cấu hình mẫu email phát hành từ ir.config_parameter
+        template_id = self.env['ir.config_parameter'].sudo().get_param('th_collaborator.contract_mail_template_id')
+        if template_id:
+            template = self.env['mail.template'].browse(int(template_id)).exists()
+            if template:
+                return template
+        template = self.env.ref(
+            'th_collaborator.th_collaborator_profile_send_mail_template', raise_if_not_found=False)
+        if not template:
+            template = self.env.ref(
+                'th_collaborator.th_collaborator_profile_upload_mail_template', raise_if_not_found=False)
+        return template
+
+    @api.model
+    def _get_contract_reminder_mail_template(self):
+        """Lấy mẫu email nhắc nhở hợp đồng từ cấu hình hệ thống hoặc fallback về mẫu mặc định."""
+        # sudo: Đọc cấu hình mẫu email nhắc nhở từ ir.config_parameter
+        template_id = self.env['ir.config_parameter'].sudo().get_param('th_collaborator.contract_reminder_mail_template_id')
+        if template_id:
+            template = self.env['mail.template'].browse(int(template_id)).exists()
+            if template:
+                return template
+        return self.env.ref(
+            'th_collaborator.th_collaborator_contract_reminder_mail_template', raise_if_not_found=False)
+
     def th_action_send_contract_mail(self):
         """Nút gửi mail hợp đồng trên form chi tiết."""
         self.ensure_one()
@@ -544,11 +587,7 @@ class ThCollaboratorContract(models.Model):
         if not self.user_id.email:
             raise UserError(_('Người phụ trách chưa có địa chỉ email để làm hòm thư phát hành.'))
 
-        default_template = self.env.ref(
-            'th_collaborator.th_collaborator_profile_send_mail_template', raise_if_not_found=False)
-        if not default_template:
-            default_template = self.env.ref(
-                'th_collaborator.th_collaborator_profile_upload_mail_template', raise_if_not_found=False)
+        default_template = self._get_contract_mail_template()
         if not default_template:
             raise UserError(_('Không tìm thấy mẫu email gửi hợp đồng.'))
 
@@ -576,11 +615,7 @@ class ThCollaboratorContract(models.Model):
         if not self:
             raise UserError(_('Vui lòng chọn ít nhất một hợp đồng để gửi mail.'))
 
-        default_template = self.env.ref(
-            'th_collaborator.th_collaborator_profile_send_mail_template', raise_if_not_found=False)
-        if not default_template:
-            default_template = self.env.ref(
-                'th_collaborator.th_collaborator_profile_upload_mail_template', raise_if_not_found=False)
+        default_template = self._get_contract_mail_template()
         if not default_template:
             raise UserError(_('Không tìm thấy mẫu email gửi hợp đồng.'))
 
@@ -761,18 +796,26 @@ class ThCollaboratorContract(models.Model):
 
     @api.model
     def th_cron_send_contract_reminders(self):
-        """Cron job hằng ngày: Quét hợp đồng đang thực hiện gần đến hạn hoặc quá hạn nộp để gửi email nhắc nhở."""
+        """Cron job hằng ngày: Cập nhật trạng thái hết hạn và quét hợp đồng đang thực hiện gần đến hạn hoặc quá hạn nộp để gửi email nhắc nhở."""
         today = fields.Date.context_today(self)
+
+        # Cập nhật trạng thái hết hạn cho các hợp đồng chưa hoàn tất hoặc chưa hủy
+        active_contracts = self.search([
+            ('date_end', '!=', False),
+            ('state', 'not in', ('close', 'cancel')),
+        ])
+        if active_contracts:
+            active_contracts._compute_expiration_status()
+
         contracts = self.search([
             ('state', '=', 'open'),
             ('th_self_attachment_ids', '=', False),
             ('date_end', '!=', False),
             ('th_email', '!=', False),
         ])
-        reminder_template = self.env.ref(
-            'th_collaborator.th_collaborator_contract_reminder_mail_template', raise_if_not_found=False)
+        reminder_template = self._get_contract_reminder_mail_template()
         if not reminder_template:
-            _logger.warning('Không tìm thấy mẫu email nhắc nhở th_collaborator_contract_reminder_mail_template')
+            _logger.warning('Không tìm thấy mẫu email nhắc nhở hợp đồng.')
             return False
 
         reminded_count = 0

@@ -20,7 +20,10 @@
                 <field name="th_upload_url" widget="CopyClipboardChar" optional="hide"/>
                 <field name="th_contract_type_ids" widget="many2many_tags" options="{'color_field': 'th_color'}" optional="show"/>
                 <field name="date_start" optional="hide"/>
-                <field name="date_end" optional="hide"/>
+                <field name="date_end" optional="show"/>
+                <field name="th_expiration_status" widget="badge" optional="show"
+                       decoration-danger="th_expiration_status == 'expired'"
+                       decoration-success="th_expiration_status == 'valid'"/>
                 <!-- 3 cột phân biệt rõ 3 loại tệp hợp đồng -->
                 <field name="th_company_file_name" string="HĐ BOF cung cấp"/>
                 <field name="th_self_file_name" string="HĐ CTV nộp"/>
@@ -83,11 +86,13 @@
                             <div class="o_kanban_record_body mb-2">
                                 <div>
                                     <strong>CTV:
+                                    
                                     </strong>
                                     <field name="th_collaborator_id"/>
                                 </div>
                                 <div t-if="record.th_batch_date.raw_value" class="text-muted small">
                                     Ngày đẩy: 
+                                    
                                     <field name="th_batch_date"/>
                                 </div>
                                 <div class="mt-1">
@@ -130,6 +135,14 @@
                     <field name="state" widget="statusbar" statusbar_visible="draft,open,submitted,valid,close" options="{'clickable': '1'}"/>
                 </header>
                 <sheet>
+                    <style>
+                        .ribbon {
+                            margin-top: 21px !important;
+                        }
+                    </style>
+                    <widget name="web_ribbon" title="Hết hạn" bg_color="bg-danger"
+                            attrs="{'invisible': [('th_is_expired', '=', False)]}"/>
+                    <field name="th_is_expired" invisible="1"/>
                     <div class="oe_button_box" name="button_box">
                         <button name="th_action_view_sent_mails"
                                 type="object"
@@ -181,13 +194,14 @@
                             <field name="th_email" widget="email"/>
                             <field name="user_id" options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="th_contract_type_ids" widget="many2many_tags"
-                                   options="{'color_field': 'th_color', 'no_create': True, 'no_create_edit': True}"/>
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="th_batch_date"/>
                         </group>
                         <group>
-                            <field name="th_batch_date"/>
                             <field name="date_start"/>
                             <field name="date_end"/>
-                            <field name="th_confirmation_status" widget="badge"/>
+                            <field name="th_expiration_status"/>
+                            <field name="th_confirmation_status"/>
                             <field name="th_is_signed" readonly="1"/>
                             <field name="th_mail_sent_date" readonly="1"/>
                             <field name="th_last_upload_date" readonly="1"/>
@@ -198,22 +212,14 @@
                             <field name="th_document_ids" nolabel="1">
                                 <tree create="false">
                                     <field name="name" string="Tên tệp"/>
-                                    <field name="th_document_type" widget="badge"
-                                           decoration-muted="th_document_type == 'company_raw'"
-                                           decoration-info="th_document_type == 'company_signed'"
-                                           decoration-warning="th_document_type == 'ctv_signed'"
-                                           decoration-primary="th_document_type == 'ctv_digital_signed'"
-                                           decoration-success="th_document_type == 'final_signed'"/>
+                                    <field name="th_document_type"/>
                                     <field name="th_file" filename="th_file_name" widget="binary" string="Tệp đính kèm"/>
                                     <field name="th_file_name" invisible="1"/>
-                                    <field name="th_uploaded_by" widget="badge"
-                                           decoration-info="th_uploaded_by == 'company'"
-                                           decoration-warning="th_uploaded_by == 'ctv'"/>
+                                    <field name="th_uploaded_by"/>
                                     <field name="th_upload_date" readonly="1"/>
                                     <field name="th_user_id" widget="many2one_avatar_user" readonly="1" optional="show"/>
                                     <field name="th_notes"/>
-                                </tree>
-                            </field>
+                                </tree></field>
                         </page>
                         <page string="Cổng tải lên hợp đồng" name="th_upload_portal">
                             <group>
@@ -262,7 +268,10 @@
                 <separator/>
                 <filter name="filter_uploaded" string="CTV đã nộp file" domain="[('th_self_attachment_ids', '!=', False)]"/>
                 <filter name="filter_not_uploaded" string="Chưa nộp file" domain="[('th_self_attachment_ids', '=', False), ('state', '=', 'open')]"/>
-                <filter name="filter_expired" string="Quá hạn nộp" domain="[('date_end', '&lt;', context_today().strftime('%Y-%m-%d')), ('state', '=', 'open')]"/>
+                <separator/>
+                <filter name="filter_contract_expired" string="Hợp đồng hết hạn" domain="[('th_is_expired', '=', True)]"/>
+                <filter name="filter_contract_not_expired" string="Hợp đồng chưa hết hạn" domain="[('th_is_expired', '=', False)]"/>
+                <filter name="filter_overdue_submission" string="Quá hạn nộp" domain="[('date_end', '&lt;', context_today().strftime('%Y-%m-%d')), ('state', '=', 'open')]"/>
                 <group expand="0" string="Gom nhóm">
                     <filter name="group_collaborator" string="Cộng tác viên" context="{'group_by': 'th_collaborator_id'}"/>
                     <filter name="group_user" string="Người phụ trách" context="{'group_by': 'user_id'}"/>
@@ -270,6 +279,10 @@
                     <filter name="group_confirmation_status" string="Tiến độ hợp đồng" context="{'group_by': 'th_confirmation_status'}"/>
                     <filter name="group_state" string="Trạng thái" context="{'group_by': 'state'}"/>
                 </group>
+                <searchpanel>
+                    <field name="th_expiration_status" string="Thời hạn" icon="fa-clock-o" enable_counters="1" select="multi"/>
+                    <field name="state" string="Trạng thái" icon="fa-tasks" enable_counters="1" select="multi"/>
+                </searchpanel>
             </search></field>
     </record>
     <!-- Action Hợp đồng CTV -->

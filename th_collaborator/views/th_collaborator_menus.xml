@@ -24,6 +24,10 @@
 
     <!-- 5. Cấu hình -->
     <menuitem id="th_collaborator_config_menu" name="Cấu hình" parent="th_collaborator_root_menu" sequence="90"/>
+    <menuitem id="th_collaborator_settings_menu" name="Thiết lập" parent="th_collaborator_config_menu"
+              action="th_collaborator_config_settings_action" sequence="5"/>
+    <menuitem id="th_collaborator_mail_template_menu" name="Mẫu email" parent="th_collaborator_config_menu"
+              action="th_collaborator_mail_template_action" sequence="15"/>
     <menuitem id="th_collaborator_contract_type_menu" name="Loại hợp đồng" parent="th_collaborator_config_menu"
-              action="th_collaborator_contract_type_action" sequence="10"/>
+              action="th_collaborator_contract_type_action" sequence="20"/>
 </odoo>
