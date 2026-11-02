@@ -27,7 +27,7 @@
             Sau khi ký, vui lòng gửi lại file PDF đã ký bằng cách phản hồi trực tiếp email này hoặc tải lên trực tiếp qua đường link cổng thông tin bên dưới:
             
                             <div style="margin: 12px 0px;">
-                                <a t-att-href="object.th_collaborator_id.th_upload_url"
+                                <a t-att-href="object.th_upload_url"
                    style="background-color: #714B67; padding: 10px 20px; color: #FFFFFF; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
                     Tải lên hợp đồng đã ký
                 </a>
@@ -117,7 +117,7 @@
                     </t>
                     <p>Anh/Chị vui lòng kiểm tra, ký xác nhận điện tử và gửi lại file PDF đã ký qua đường link cổng thông tin bên dưới:</p>
                     <div style="margin: 16px 0px;">
-                        <a t-att-href="object.th_collaborator_id.th_upload_url"
+                        <a t-att-href="object.th_upload_url"
                            style="background-color: #714B67; padding: 10px 20px; color: #FFFFFF; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
                             Tải lên hợp đồng đã ký
                         </a>

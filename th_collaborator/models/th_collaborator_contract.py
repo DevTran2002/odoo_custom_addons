@@ -4,6 +4,7 @@ import io
 import logging
 import os
 import re
+import secrets
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
@@ -31,8 +32,16 @@ class ThCollaboratorContract(models.Model):
         """Mặc định người phụ trách hợp đồng là người dùng hiện tại."""
         return self.env.user
 
+    def th_default_access_token(self):
+        """Sinh token ngẫu nhiên cho link upload công khai của Hợp đồng."""
+        return secrets.token_urlsafe(32)
+
     name = fields.Char(string='Tên hợp đồng', required=True, tracking=True)
     th_code = fields.Char(string='Mã hợp đồng', required=True, index=True, copy=False, tracking=True)
+    th_access_token = fields.Char(
+        string='Token upload', copy=False, default=lambda self: self.th_default_access_token())
+    th_upload_url = fields.Char(
+        string='Link upload hợp đồng', compute='_compute_upload_url')
     th_collaborator_id = fields.Many2one(
         'th.collaborator.profile', string='Cộng tác viên',
         required=True, index=True, ondelete='restrict', tracking=True)
@@ -107,7 +116,25 @@ class ThCollaboratorContract(models.Model):
 
     _sql_constraints = [
         ('th_code_uniq', 'unique(th_code)', 'Mã hợp đồng đã tồn tại trong hệ thống. Vui lòng chọn mã khác.'),
+        ('th_contract_access_token_uniq', 'unique(th_access_token)', 'Token upload của hợp đồng bị trùng.'),
     ]
+
+    def _add_sql_constraints(self):
+        """Đảm bảo tất cả hợp đồng có token upload duy nhất trước khi gán ràng buộc unique."""
+        self.env.cr.execute("""
+            SELECT id FROM th_collaborator_contract 
+            WHERE th_access_token IS NULL OR th_access_token IN (
+                SELECT th_access_token FROM th_collaborator_contract GROUP BY th_access_token HAVING count(*) > 1
+            )
+        """)
+        dup_ids = [r[0] for r in self.env.cr.fetchall()]
+        for rec_id in dup_ids:
+            new_token = secrets.token_urlsafe(32)
+            self.env.cr.execute(
+                "UPDATE th_collaborator_contract SET th_access_token = %s WHERE id = %s",
+                (new_token, rec_id)
+            )
+        super()._add_sql_constraints()
 
     @api.depends('th_self_attachment_ids', 'th_final_attachment_id', 'th_document_ids.th_document_type', 'state')
     def _compute_is_signed(self):
@@ -188,7 +215,10 @@ class ThCollaboratorContract(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Tạo hợp đồng và gắn file hợp đồng vào đúng bản ghi."""
+        """Tạo hợp đồng và gắn file hợp đồng vào đúng bản ghi, tự động sinh token nếu chưa có."""
+        for vals in vals_list:
+            if not vals.get('th_access_token'):
+                vals['th_access_token'] = self.th_default_access_token()
         records = super().create(vals_list)
         records._link_contract_attachments()
         return records
@@ -319,6 +349,20 @@ class ThCollaboratorContract(models.Model):
             'th_valid_confirmed_user_id': self.env.user.id,
         })
         self.message_post(body=_('Nhân viên %s đã kiểm tra và xác nhận hợp đồng hợp lệ.') % self.env.user.name)
+        return True
+
+    @api.depends('th_access_token')
+    def _compute_upload_url(self):
+        """Dựng link công khai để CTV tự tải hợp đồng lên theo từng hợp đồng."""
+        for rec in self:
+            rec.th_upload_url = rec.th_access_token and '%s/th_collaborator/upload/%s' % (
+                rec.get_base_url(), rec.th_access_token) or False
+
+    def th_action_regenerate_token(self):
+        """Tạo lại link upload cho hợp đồng, vô hiệu hoá link cũ đã gửi cho CTV."""
+        self.ensure_one()
+        self.th_access_token = self.th_default_access_token()
+        self.message_post(body=_('Đã tạo lại link upload cho hợp đồng này, link cũ không còn hiệu lực.'))
         return True
 
     def action_open_contract_form(self):

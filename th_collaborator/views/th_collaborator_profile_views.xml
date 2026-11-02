@@ -28,10 +28,6 @@
         <field name="model">th.collaborator.profile</field>
         <field name="arch" type="xml">
             <form string="Cộng tác viên">
-                <header>
-                    <button name="th_action_regenerate_token" type="object" string="Tạo lại link upload"
-                            confirm="Link cũ đã gửi cho CTV sẽ không dùng được nữa. Tiếp tục?"/>
-                </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button name="action_open_collaborator_contracts" type="object"
@@ -52,8 +48,7 @@
                             <field name="user_id" required="1" options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="th_birthday" required="1"/>
                         </group>
-                        <group string="Cổng tải lên hợp đồng">
-                            <field name="th_upload_url" widget="CopyClipboardChar"/>
+                        <group string="Hợp đồng">
                             <field name="th_running_contract_count" readonly="1"/>
                         </group>
                         <group string="Định danh &amp; Thuế">

@@ -17,6 +17,7 @@
                 <field name="name"/>
                 <field name="th_collaborator_id"/>
                 <field name="th_phone" optional="show"/>
+                <field name="th_upload_url" widget="CopyClipboardChar" optional="hide"/>
                 <field name="th_contract_type_ids" widget="many2many_tags" options="{'color_field': 'th_color'}" optional="show"/>
                 <field name="date_start" optional="hide"/>
                 <field name="date_end" optional="hide"/>
@@ -191,7 +192,19 @@
                                     <field name="th_upload_date" readonly="1"/>
                                     <field name="th_user_id" widget="many2one_avatar_user" readonly="1" optional="show"/>
                                     <field name="th_notes"/>
-                                </tree></field>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Cổng tải lên hợp đồng" name="th_upload_portal">
+                            <group>
+                                <label for="th_upload_url"/>
+                                <div class="o_row">
+                                    <field name="th_upload_url" widget="CopyClipboardChar" readonly="1"/>
+                                    <button name="th_action_regenerate_token" type="object"
+                                            string="Tạo lại link" class="btn-link"
+                                            confirm="Tạo lại link upload sẽ vô hiệu hóa đường link cũ đã gửi cho CTV. Bạn có chắc muốn tiếp tục?"/>
+                                </div>
+                            </group>
                         </page>
                     </notebook>
                 </sheet>

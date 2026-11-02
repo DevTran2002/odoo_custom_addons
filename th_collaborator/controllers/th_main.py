@@ -16,14 +16,21 @@ TH_UPLOAD_MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB / file
 
 class ThCollaboratorController(http.Controller):
 
-    def _get_profile_by_token(self, token):
-        """Tìm CTV theo token của link upload."""
-        Profile = request.env['th.collaborator.profile']
+    def _get_contract_by_token(self, token):
+        """Tìm Hợp đồng theo token của link upload (hỗ trợ tương thích ngược với token CTV cũ)."""
+        Contract = request.env['th.collaborator.contract']
         if not token or len(token) < 20:
-            return Profile.browse()
-        # sudo: CTV truy cập ẩn danh (public user) không có quyền đọc model;
-        # chỉ tra đúng 1 bản ghi theo token ngẫu nhiên, không lộ dữ liệu khác.
-        return Profile.sudo().search([('th_access_token', '=', token)], limit=1)
+            return Contract.browse()
+        # sudo: CTV truy cập cổng công khai không có phiên đăng nhập nhân viên nội bộ;
+        # chỉ tra đúng 1 bản ghi hợp đồng theo token bảo mật ngẫu nhiên, không làm lộ các dữ liệu khác.
+        contract = Contract.sudo().search([('th_access_token', '=', token)], limit=1)
+        if not contract:
+            # Hỗ trợ tương thích ngược: Tìm theo token cũ trên hồ sơ CTV nếu có link đã gửi trước đây
+            Profile = request.env['th.collaborator.profile']
+            profile = Profile.sudo().search([('th_access_token', '=', token)], limit=1)
+            if profile:
+                contract = profile.sudo().th_contract_ids.filtered(lambda c: c.state != 'cancel')[:1]
+        return contract
 
     def _render_upload_page(self, values):
         """Render trang upload hợp đồng công khai."""
@@ -55,44 +62,33 @@ class ThCollaboratorController(http.Controller):
 
     @http.route('/th_collaborator/upload/<string:token>', type='http', auth='public', website=True, methods=['GET'])
     def render_upload_form(self, token, **kwargs):
-        """Hiển thị form portal để CTV tải hợp đồng lên bằng token bảo mật."""
-        profile = self._get_profile_by_token(token)
-        if not profile:
+        """Hiển thị form portal để CTV tải hợp đồng lên theo từng hợp đồng bằng token bảo mật."""
+        contract = self._get_contract_by_token(token)
+        if not contract:
             return request.not_found()
-        # sudo: Đọc danh sách hợp đồng của CTV để hiển thị trên portal công khai
-        contracts = profile.sudo().th_contract_ids.filtered(lambda c: c.state != 'cancel')
         return self._render_upload_page({
             'token': token,
-            'profile': profile,
-            'contracts': contracts,
+            'contract': contract,
+            'profile': contract.th_collaborator_id,
         })
 
     @http.route('/th_collaborator/upload/<string:token>/submit', type='http', auth='public', website=True, methods=['POST'])
-    def submit_upload_form(self, token, contract_id=None, **kwargs):
-        """Nhận file hợp đồng CTV gửi lên và gán đúng hợp đồng theo token truy cập."""
-        profile = self._get_profile_by_token(token)
-        if not profile:
+    def submit_upload_form(self, token, **kwargs):
+        """Nhận file hợp đồng CTV gửi lên và gán trực tiếp vào hợp đồng theo token truy cập."""
+        contract = self._get_contract_by_token(token)
+        if not contract:
             return request.not_found()
 
-        # sudo: Đọc danh sách hợp đồng của CTV để hiển thị lại nếu có lỗi
-        contracts = profile.sudo().th_contract_ids.filtered(lambda c: c.state != 'cancel')
+        profile = contract.th_collaborator_id
         values = {
             'token': token,
+            'contract': contract,
             'profile': profile,
-            'contracts': contracts,
-            'contract_id': contract_id,
         }
 
-        # 1. Xác định Hợp đồng mục tiêu
-        target_contract = False
-        if contract_id and str(contract_id).isdigit():
-            # sudo: Tìm hợp đồng được chỉ định thuộc CTV này
-            target_contract = profile.sudo().th_contract_ids.filtered(lambda c: c.id == int(contract_id))
-        elif len(contracts) == 1:
-            target_contract = contracts[0]
-
-        if not target_contract:
-            values['error'] = _('Vui lòng chọn hợp đồng bạn muốn nộp file.')
+        # 1. Kiểm tra trạng thái hợp đồng: Nếu đã hủy thì từ chối tiếp nhận
+        if contract.state == 'cancel':
+            values['error'] = _('Hợp đồng này đã bị hủy, không thể tiếp nhận tệp tải lên.')
             return self._render_upload_page(values)
 
         # 2. Đọc và kiểm tra các file tải lên
@@ -101,11 +97,11 @@ class ThCollaboratorController(http.Controller):
             values['error'] = error
             return self._render_upload_page(values)
 
-        # sudo: Lưu file vào đúng hợp đồng mục tiêu của CTV
-        target_contract.sudo()._add_self_contracts(files)
+        # sudo: Người dùng public nộp file hợp đồng vào đúng bản ghi hợp đồng mục tiêu mà không cần đăng nhập hệ thống nội bộ
+        contract.sudo()._add_self_contracts(files)
 
         values['success'] = _('Xin chào %s, hệ thống đã nhận %s file cho hợp đồng "%s" (Mã: %s). Cảm ơn bạn!') % (
-            profile.name, len(files), target_contract.name, target_contract.th_code)
+            profile.name, len(files), contract.name, contract.th_code)
         return self._render_upload_page(values)
 
     @http.route('/th_collaborator/download_file', type='http', auth='user', methods=['GET'])
