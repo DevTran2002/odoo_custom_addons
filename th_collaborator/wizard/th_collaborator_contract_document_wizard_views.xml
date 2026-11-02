@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="th_collaborator_contract_document_wizard_form_view" model="ir.ui.view">
+        <field name="name">th.collaborator.contract.document.wizard.form</field>
+        <field name="model">th.collaborator.contract.document.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Tải lên tệp hợp đồng">
+                <group>
+                    <group>
+                        <field name="th_contract_id" readonly="1" options="{'no_open': True}"/>
+                        <field name="th_collaborator_id" readonly="1"/>
+                        <field name="th_document_type" widget="selection" required="1" placeholder="-- Chọn phân loại bản ký --"/>
+                    </group>
+                    <group>
+                        <field name="th_file" filename="th_file_name" widget="binary" required="1"/>
+                        <field name="th_file_name" invisible="1"/>
+                        <field name="name" readonly="1" force_save="1"/>
+                    </group>
+                </group>
+                <notebook>
+                    <page string="Ghi chú" name="th_notes">
+                        <field name="th_notes" placeholder="Nhập ghi chú thêm nếu có..."/>
+                    </page>
+                </notebook>
+                <footer>
+                    <button name="action_confirm_upload" string="Xác nhận tải lên" type="object" class="btn-primary"/>
+                    <button string="Hủy" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form></field>
+    </record>
+</odoo>

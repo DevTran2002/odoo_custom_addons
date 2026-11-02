@@ -17,6 +17,7 @@
         'views/th_collaborator_contract_views.xml',
         'views/th_collaborator_upload_templates.xml',
         'wizard/th_collaborator_upload_wizard_views.xml',
+        'wizard/th_collaborator_contract_document_wizard_views.xml',
         'views/th_collaborator_menus.xml',
     ],
     'assets': {

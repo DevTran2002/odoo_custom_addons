@@ -146,6 +146,19 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                 new_contract.write({
                     'th_company_attachment_ids': [Command.link(att.id)],
                 })
+                # sudo: Tự động ghi nhận dòng tài liệu hợp đồng trong bảng danh sách tệp
+                self.env['th.collaborator.contract.document'].sudo().create({
+                    'name': att.name,
+                    'th_contract_id': new_contract.id,
+                    'th_document_type': 'company_signed',
+                    'th_file': att.datas,
+                    'th_file_name': att.name,
+                    'th_attachment_id': att.id,
+                    'th_uploaded_by': 'company',
+                    'th_upload_date': fields.Datetime.now(),
+                    'th_user_id': self.env.user.id,
+                    'th_notes': _('Nạp từ wizard tải hàng loạt'),
+                })
                 new_contract.message_post(body=_('Tạo mới hợp đồng qua nạp file hàng loạt (Tệp nguồn: %s).') % att.name)
                 created_contracts |= new_contract
 
@@ -181,6 +194,19 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                 # Ghi đè file công ty bằng file mới tải lên
                 target_contract.write({
                     'th_company_attachment_ids': [Command.set([att.id])],
+                })
+                # sudo: Tự động ghi nhận dòng tài liệu hợp đồng thay thế vào bảng danh sách tệp
+                self.env['th.collaborator.contract.document'].sudo().create({
+                    'name': att.name,
+                    'th_contract_id': target_contract.id,
+                    'th_document_type': 'company_signed',
+                    'th_file': att.datas,
+                    'th_file_name': att.name,
+                    'th_attachment_id': att.id,
+                    'th_uploaded_by': 'company',
+                    'th_upload_date': fields.Datetime.now(),
+                    'th_user_id': self.env.user.id,
+                    'th_notes': _('Thay thế file qua nạp hàng loạt'),
                 })
                 target_contract.message_post(
                     body=_('Đã thay thế file hợp đồng công ty cũ [%s] bằng file mới [%s] qua nạp hàng loạt.') % (
