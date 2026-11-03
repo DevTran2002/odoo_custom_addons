@@ -340,7 +340,7 @@ class ThCollaboratorContract(models.Model):
                 elif new_state == 'submitted':
                     if current_state not in ('sent', 'submitted'):
                         raise UserError(
-                            _('Không thể nhảy cóc: Hợp đồng "%s" phải ở trạng thái "Gửi mail" trước khi chuyển sang "Chờ duyệt".')
+                            _('Hợp đồng "%s" phải ở trạng thái "Gửi mail" trước khi chuyển sang "Chờ duyệt".')
                             % rec.name
                         )
                     has_ctv_file = bool(
@@ -357,7 +357,7 @@ class ThCollaboratorContract(models.Model):
                 elif new_state == 'pending_sign':
                     if current_state not in ('sent', 'submitted', 'pending_sign'):
                         raise UserError(
-                            _('Không thể nhảy cóc: Hợp đồng "%s" phải ở trạng thái "Gửi mail" hoặc "Chờ duyệt" trước khi chuyển sang "Chờ ký".')
+                            _('Hợp đồng "%s" phải ở trạng thái "Gửi mail" hoặc "Chờ duyệt" trước khi chuyển sang "Chờ ký".')
                             % rec.name
                         )
                     has_ctv_file = bool(
@@ -370,20 +370,37 @@ class ThCollaboratorContract(models.Model):
                             % rec.name
                         )
 
-                # 5. Ràng buộc khi chuyển sang "Đã duyệt hợp lệ" (valid): Bắt buộc từ "Chờ duyệt" hoặc "Chờ ký"
+                # 5. Ràng buộc khi chuyển sang "Đã duyệt hợp lệ" (valid): Bắt buộc từ "Chờ duyệt" hoặc "Chờ ký" và phải có bản hợp đồng đầy đủ cả 2 chữ ký
                 elif new_state == 'valid':
                     if current_state not in ('submitted', 'pending_sign', 'valid'):
                         raise UserError(
-                            _('Không thể nhảy cóc: Hợp đồng "%s" phải ở trạng thái "Chờ duyệt" hoặc "Chờ ký" trước khi chuyển sang "Đã duyệt hợp lệ".')
+                            _('Hợp đồng "%s" phải ở trạng thái "Chờ duyệt" hoặc "Chờ ký" trước khi chuyển sang "Đã duyệt hợp lệ".')
                             % rec.name
                         )
                     has_ctv_file = bool(
+                        vals.get('th_self_attachment_ids') or
                         rec.th_self_attachment_ids or
                         rec.th_document_ids.filtered(lambda d: d.th_document_type in ('ctv_signed', 'ctv_digital_signed'))
                     )
                     if not has_ctv_file:
                         raise UserError(
                             _('Không thể chuyển sang trạng thái "Đã duyệt hợp lệ": Hợp đồng "%s" chưa có tệp do CTV nộp.')
+                            % rec.name
+                        )
+                    has_final_file = bool(
+                        vals.get('th_final_attachment_id') or
+                        rec.th_final_attachment_id or
+                        rec.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')
+                    )
+                    # Trường hợp hợp đồng thuộc luồng mẫu công ty đã ký số từ trước và CTV đã nộp bản ký
+                    is_pre_signed_completed = bool(
+                        rec.th_contract_flow == 'signed_template' and
+                        rec.th_document_ids.filtered(lambda d: d.th_document_type == 'company_signed') and
+                        rec.th_document_ids.filtered(lambda d: d.th_document_type in ('ctv_signed', 'ctv_digital_signed'))
+                    )
+                    if not has_final_file and not is_pre_signed_completed:
+                        raise UserError(
+                            _('Không thể chuyển sang trạng thái "Đã duyệt hợp lệ": Hợp đồng "%s" chưa có bản hợp đồng đầy đủ cả 2 chữ ký. Vui lòng ký số và tải lên tệp hợp đồng hoàn tất đủ 2 chữ ký trước khi duyệt.')
                             % rec.name
                         )
 
@@ -470,6 +487,19 @@ class ThCollaboratorContract(models.Model):
         )
         if not has_ctv_file:
             raise UserError(_('Hợp đồng chưa có file do CTV tải lên để xác nhận.'))
+        has_final_file = bool(
+            self.th_final_attachment_id or
+            self.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')
+        )
+        is_pre_signed_completed = bool(
+            self.th_contract_flow == 'signed_template' and
+            self.th_document_ids.filtered(lambda d: d.th_document_type == 'company_signed') and
+            self.th_document_ids.filtered(lambda d: d.th_document_type in ('ctv_signed', 'ctv_digital_signed'))
+        )
+        if not has_final_file and not is_pre_signed_completed:
+            raise UserError(
+                _('Không thể chuyển sang trạng thái "Đã duyệt hợp lệ": Hợp đồng chưa có bản hợp đồng đầy đủ cả 2 chữ ký. Vui lòng tải lên tệp hợp đồng hoàn tất đủ 2 chữ ký trước khi duyệt.')
+            )
         self.write({
             'state': 'valid',
             'th_is_valid_confirmed': True,
@@ -951,6 +981,7 @@ class ThCollaboratorContract(models.Model):
             raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc đã Hết hạn, không thể tải lên thêm tệp.'))
         if self.state in ('close', 'cancel'):
             raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể tải lên thêm tệp.'))
+        default_doc_type = 'final_signed' if self.state in ('pending_sign', 'valid') else False
         return {
             'name': _('Tải lên tệp hợp đồng'),
             'type': 'ir.actions.act_window',
@@ -959,7 +990,7 @@ class ThCollaboratorContract(models.Model):
             'target': 'new',
             'context': {
                 'default_th_contract_id': self.id,
-                'default_th_document_type': False,
+                'default_th_document_type': default_doc_type,
             },
         }
 
