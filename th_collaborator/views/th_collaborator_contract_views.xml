@@ -28,8 +28,6 @@
                 <field name="th_company_file_name" string="HĐ công ty cung cấp"/>
                 <field name="th_self_file_name" string="HĐ CTV nộp"/>
                 <field name="th_final_file_name" string="HĐ đủ 2 chữ ký"/>
-                <!-- Trạng thái xác nhận và tiến độ -->
-                <field name="th_is_valid_confirmed" widget="boolean_toggle" string="Đã xác nhận"/>
                 <field name="state" widget="badge"
                        decoration-info="state == 'open'"
                        decoration-primary="state in ('sent', 'valid')"
@@ -216,14 +214,7 @@
                     <field name="th_mail_failed_count" invisible="1"/>
                     <field name="th_company_file_name" invisible="1"/>
                     <field name="th_final_file_name" invisible="1"/>
-                    <field name="th_is_valid_confirmed" invisible="1"/>
                     <field name="th_mail_error" invisible="1"/>
-                    <div class="alert alert-success d-flex align-items-center mb-2" role="alert" attrs="{'invisible': [('th_is_valid_confirmed', '=', False)]}">
-                        <span>Đã xác nhận hợp lệ bởi 
-                            <field name="th_valid_confirmed_user_id" readonly="1" class="fw-bold d-inline" options="{'no_open': True}"/> vào ngày 
-                            <field name="th_valid_confirmed_date" readonly="1" class="d-inline"/>.
-                        </span>
-                    </div>
                     <div class="oe_title">
                         <label for="th_code" class="oe_edit_only"/>
                         <h2>
@@ -323,8 +314,7 @@
                 <filter name="filter_mail_sent" string="Đã gửi mail" domain="[('state', '=', 'sent')]"/>
                 <filter name="filter_mail_error" string="Lỗi gửi mail" domain="['|', ('state', '=', 'mail_error'), ('th_mail_error', '!=', False)]"/>
                 <separator/>
-                <filter name="filter_valid_confirmed" string="Đã duyệt hợp lệ" domain="[('th_is_valid_confirmed', '=', True)]"/>
-                <filter name="filter_waiting_valid" string="Chờ duyệt / Chờ ký" domain="[('th_is_valid_confirmed', '=', False), ('state', 'in', ('submitted', 'pending_sign'))]"/>
+                <filter name="filter_waiting_valid" string="Chờ duyệt / Chờ ký" domain="[('state', 'in', ('submitted', 'pending_sign'))]"/>
                 <filter name="filter_has_final" string="Đã có bản 2 chữ ký" domain="[('th_final_attachment_id', '!=', False)]"/>
                 <separator/>
                 <filter name="filter_uploaded" string="CTV đã nộp file" domain="[('th_self_attachment_ids', '!=', False)]"/>

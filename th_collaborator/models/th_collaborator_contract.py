@@ -119,12 +119,6 @@ class ThCollaboratorContract(models.Model):
     th_final_file_name = fields.Char(
         string='HĐ đủ 2 chữ ký', compute='_compute_contract_file_info', store=True)
 
-    th_is_valid_confirmed = fields.Boolean(
-        string='Đã xác nhận hợp lệ', default=False, copy=False, tracking=True)
-    th_valid_confirmed_date = fields.Datetime(
-        string='Ngày xác nhận hợp lệ', copy=False)
-    th_valid_confirmed_user_id = fields.Many2one(
-        'res.users', string='Người xác nhận', copy=False)
     th_is_readonly = fields.Boolean(
         string='Khóa chỉnh sửa', compute='_compute_is_readonly')
 
@@ -421,12 +415,6 @@ class ThCollaboratorContract(models.Model):
                             % rec.name
                         )
 
-        # Tự động gán thông tin xác nhận khi chuyển sang valid
-        if vals.get('state') == 'valid':
-            vals.setdefault('th_is_valid_confirmed', True)
-            vals.setdefault('th_valid_confirmed_date', fields.Datetime.now())
-            vals.setdefault('th_valid_confirmed_user_id', self.env.user.id)
-
         old_states = {rec.id: rec.state for rec in self} if 'state' in vals else {}
         res = super().write(vals)
 
@@ -502,9 +490,6 @@ class ThCollaboratorContract(models.Model):
             )
         self.write({
             'state': 'valid',
-            'th_is_valid_confirmed': True,
-            'th_valid_confirmed_date': fields.Datetime.now(),
-            'th_valid_confirmed_user_id': self.env.user.id,
         })
         self.message_post(body=_('Nhân viên %s đã kiểm tra và chuyển trạng thái hợp đồng sang Đã duyệt hợp lệ.') % self.env.user.name)
         return True
