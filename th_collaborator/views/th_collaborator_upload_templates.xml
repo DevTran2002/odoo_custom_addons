@@ -39,8 +39,9 @@
                             <div class="col-sm-6">
                                 <span class="text-muted">Trạng thái:</span>
                                 <span t-if="contract.state == 'open'" class="badge bg-info text-dark ms-1">Đang thực hiện</span>
+                                <span t-elif="contract.state == 'sent'" class="badge bg-primary ms-1">Gửi mail</span>
                                 <span t-elif="contract.state == 'submitted'" class="badge bg-warning text-dark ms-1">Đã nộp</span>
-                                <span t-elif="contract.state == 'valid'" class="badge bg-primary ms-1">Đã duyệt hợp lệ</span>
+                                <span t-elif="contract.state == 'valid'" class="badge bg-info ms-1">Đã duyệt hợp lệ</span>
                                 <span t-elif="contract.state == 'close'" class="badge bg-success ms-1">Hoàn tất</span>
                                 <span t-else="" class="badge bg-secondary ms-1">Dự thảo / Chờ ký</span>
                             </div>

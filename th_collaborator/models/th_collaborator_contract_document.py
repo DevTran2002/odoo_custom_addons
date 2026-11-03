@@ -60,6 +60,22 @@ class ThCollaboratorContractDocument(models.Model):
                 rec.th_attachment_id = att.id
         return records
 
+    def write(self, vals):
+        """Cập nhật tài liệu hợp đồng và đồng bộ sang tệp đính kèm hệ thống (ir.attachment)."""
+        res = super().write(vals)
+        if any(f in vals for f in ('name', 'th_file', 'th_file_name')):
+            for rec in self:
+                if rec.th_attachment_id:
+                    att_vals = {}
+                    if 'th_file' in vals:
+                        att_vals['datas'] = rec.th_file
+                    if 'name' in vals or 'th_file_name' in vals:
+                        att_vals['name'] = rec.name or rec.th_file_name or 'contract_document.pdf'
+                    if att_vals:
+                        # sudo: Đồng bộ nội dung và tên tệp đính kèm sang ir.attachment
+                        rec.th_attachment_id.sudo().write(att_vals)
+        return res
+
     def action_download_file(self):
         """Tải trực tiếp tệp tài liệu này về máy người dùng."""
         self.ensure_one()

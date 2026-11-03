@@ -40,6 +40,34 @@ class MailMail(models.Model):
                 mail.th_contract_id = False
                 mail.th_collaborator_id = False
 
+    def write(self, vals):
+        """Tự động đồng bộ trạng thái lỗi gửi email sang Hợp đồng tương ứng."""
+        res = super().write(vals)
+        new_state = vals.get('state')
+        if new_state == 'exception':
+            for mail in self:
+                contract = mail.th_contract_id
+                if contract and contract.state in ('draft', 'open', 'sent'):
+                    err_msg = mail.failure_reason or _('Lỗi máy chủ khi gửi thư (SMTP).')
+                    # Ghi nhận trạng thái gửi mail lỗi cho hợp đồng
+                    contract.write({
+                        'state': 'mail_error',
+                        'th_mail_error': err_msg,
+                    })
+                    contract.message_post(body=_('Gửi email hợp đồng thất bại: %s') % err_msg)
+        elif new_state == 'sent':
+            for mail in self:
+                contract = mail.th_contract_id
+                if contract and contract.state == 'mail_error':
+                    # Email gửi lại thành công, khôi phục trạng thái gửi mail
+                    contract.write({
+                        'state': 'sent',
+                        'th_mail_error': False,
+                        'th_mail_sent_date': fields.Datetime.now(),
+                    })
+                    contract.message_post(body=_('Email hợp đồng đã được gửi thành công đến CTV: %s') % (contract.th_email or ''))
+        return res
+
 
 class ThCollaboratorMailSent(models.Model):
     """Model view SQL để hiển thị danh sách và chi tiết email đã gửi cho Cộng tác viên."""

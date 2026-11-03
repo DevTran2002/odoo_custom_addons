@@ -31,6 +31,10 @@ class ThCollaboratorUploadWizard(models.TransientModel):
 
     th_batch_date = fields.Date(
         string='Ngày đẩy hợp đồng', default=fields.Date.context_today)
+    date_start = fields.Date(
+        string='Ngày bắt đầu', default=fields.Date.context_today)
+    date_end = fields.Date(
+        string='Ngày kết thúc')
 
     th_attachment_ids = fields.Many2many(
         'ir.attachment', 'th_collaborator_upload_wizard_attachment_rel',
@@ -92,6 +96,16 @@ class ThCollaboratorUploadWizard(models.TransientModel):
             raise UserError(_('Chỉ chấp nhận file PDF hoặc hình ảnh (.jpg, .jpeg, .png). Các file sau không hợp lệ:\n%s')
                             % '\n'.join(invalid_files.mapped('name')))
 
+        if self.th_mode == 'add':
+            if not self.th_contract_type_ids:
+                raise UserError(_('Vui lòng chọn Loại hợp đồng cho đợt hợp đồng mới.'))
+            if not self.date_start:
+                raise UserError(_('Vui lòng nhập Ngày bắt đầu cho đợt hợp đồng mới.'))
+            if not self.date_end:
+                raise UserError(_('Vui lòng nhập Ngày kết thúc cho đợt hợp đồng mới.'))
+            if self.date_end < self.date_start:
+                raise UserError(_('Ngày kết thúc không được nhỏ hơn ngày bắt đầu.'))
+
         created_contracts = self.env['th.collaborator.contract']
         updated_contracts = self.env['th.collaborator.contract']
         unmatched_errors = []
@@ -137,6 +151,8 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                     'user_id': profile.user_id.id if profile.user_id else self.env.user.id,
                     'th_batch_date': self.th_batch_date or fields.Date.context_today(self),
                     'th_contract_type_ids': [Command.set(self.th_contract_type_ids.ids)] if self.th_contract_type_ids else False,
+                    'date_start': self.date_start or fields.Date.context_today(self),
+                    'date_end': self.date_end,
                     'state': 'draft',
                 })
                 att.write({

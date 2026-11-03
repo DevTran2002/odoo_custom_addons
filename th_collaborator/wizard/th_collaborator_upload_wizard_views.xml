@@ -44,7 +44,10 @@
                         <group string="Thông tin đợt hợp đồng" attrs="{'invisible': [('th_mode', '!=', 'add')]}">
                             <field name="th_batch_date" attrs="{'required': [('th_mode', '=', 'add')]}"/>
                             <field name="th_contract_type_ids" widget="many2many_tags"
-                                   options="{'color_field': 'th_color', 'no_create': True, 'no_create_edit': True}"/>
+                                   options="{'no_create': True, 'no_create_edit': True}"
+                                   attrs="{'required': [('th_mode', '=', 'add')]}"/>
+                            <field name="date_start" attrs="{'required': [('th_mode', '=', 'add')]}"/>
+                            <field name="date_end" attrs="{'required': [('th_mode', '=', 'add')]}"/>
                         </group>
                     </group>
 

@@ -25,26 +25,21 @@
                        decoration-danger="th_expiration_status == 'expired'"
                        decoration-success="th_expiration_status == 'valid'"/>
                 <!-- 3 cột phân biệt rõ 3 loại tệp hợp đồng -->
-                <field name="th_company_file_name" string="HĐ BOF cung cấp"/>
+                <field name="th_company_file_name" string="HĐ công ty cung cấp"/>
                 <field name="th_self_file_name" string="HĐ CTV nộp"/>
                 <field name="th_final_file_name" string="HĐ đủ 2 chữ ký"/>
                 <!-- Trạng thái xác nhận và tiến độ -->
                 <field name="th_is_valid_confirmed" widget="boolean_toggle" string="Đã xác nhận"/>
-                <field name="th_confirmation_status" widget="badge"
-                       decoration-muted="th_confirmation_status == 'draft'"
-                       decoration-warning="th_confirmation_status in ('waiting_upload', 'submitted')"
-                       decoration-info="th_confirmation_status == 'valid'"
-                       decoration-success="th_confirmation_status == 'completed'"/>
                 <field name="state" widget="badge"
                        decoration-info="state == 'open'"
+                       decoration-primary="state in ('sent', 'valid')"
                        decoration-warning="state == 'submitted'"
-                       decoration-primary="state == 'valid'"
                        decoration-success="state == 'close'"
-                       decoration-danger="state == 'cancel'"/>
+                       decoration-danger="state in ('cancel', 'mail_error')"/>
                 <field name="th_last_history_note" string="Lịch sử thao tác" optional="show"/>
                 <!-- Nút thao tác trên từng dòng -->
                 <button name="th_action_download_single_company_file" type="object" icon="fa-file-text-o"
-                        title="Tải tệp BOF cung cấp" attrs="{'invisible': [('th_company_file_name', '=', 'Chưa có file')]}"/>
+                        title="Tải tệp công ty cung cấp" attrs="{'invisible': [('th_company_file_name', '=', 'Chưa có file')]}"/>
                 <button name="th_action_download_single_self_file" type="object" icon="fa-upload"
                         title="Tải tệp CTV nộp" class="text-primary" attrs="{'invisible': [('th_self_file_name', '=', 'Chưa nộp')]}"/>
                 <button name="th_action_download_single_final_file" type="object" icon="fa-check-circle"
@@ -69,7 +64,6 @@
                 <field name="date_end"/>
                 <field name="state"/>
                 <field name="th_contract_type_ids"/>
-                <field name="th_confirmation_status"/>
                 <templates>
                     <t t-name="kanban-box">
                         <div t-attf-class="oe_kanban_global_click o_kanban_record">
@@ -91,9 +85,7 @@
                                     <field name="th_collaborator_id"/>
                                 </div>
                                 <div t-if="record.th_batch_date.raw_value" class="text-muted small">
-                                    Ngày đẩy: 
-                                    
-                                    <field name="th_batch_date"/>
+                                    Ngày đẩy: <field name="th_batch_date"/>
                                 </div>
                                 <div class="mt-1">
                                     <field name="th_contract_type_ids" widget="many2many_tags" options="{'color_field': 'th_color'}"/>
@@ -102,7 +94,7 @@
                             <div class="o_kanban_record_bottom">
                                 <div class="oe_kanban_bottom_left">
                                     <field name="state" widget="label_selection"
-                                           options="{'classes': {'draft': 'default', 'open': 'info', 'submitted': 'warning', 'valid': 'primary', 'close': 'success', 'cancel': 'danger'}}"/>
+                                           options="{'classes': {'draft': 'default', 'open': 'info', 'sent': 'primary', 'submitted': 'warning', 'valid': 'info', 'close': 'success', 'cancel': 'danger', 'mail_error': 'danger'}}"/>
                                 </div>
                                 <div class="oe_kanban_bottom_right">
                                     <field name="user_id" widget="many2one_avatar_user"/>
@@ -122,19 +114,25 @@
                 <header>
                     <button name="action_open_upload_document_wizard" type="object"
                             string="Upload hợp đồng" class="btn-primary" icon="fa-upload"
-                            states="draft,open"/>
+                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open', 'sent', 'mail_error')), ('th_is_readonly', '=', True)]}"/>
                     <button name="th_action_send_contract_mail" type="object" string="Gửi mail hợp đồng" class="oe_highlight"
-                            attrs="{'invisible': ['|', ('th_mail_sent_date', '!=', False), ('th_company_file_name', '=', 'Chưa có file')]}"/>
+                            attrs="{'invisible': ['|', ('state', 'in', ('sent', 'mail_error')), '|', ('th_is_readonly', '=', True), '|', ('th_mail_sent_date', '!=', False), ('th_company_file_name', '=', 'Chưa có file')]}"/>
                     <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail"
-                            attrs="{'invisible': ['|', ('th_mail_sent_date', '=', False), ('th_company_file_name', '=', 'Chưa có file')]}"
+                            attrs="{'invisible': ['|', ('state', '=', 'mail_error'), '|', ('th_is_readonly', '=', True), '|', ('th_mail_sent_date', '=', False), ('th_company_file_name', '=', 'Chưa có file')]}"
                             confirm="Hợp đồng này đã được gửi mail trước đó. Bạn có chắc muốn gửi lại?"/>
+                    <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="btn-secondary"
+                            attrs="{'invisible': ['|', ('state', '!=', 'mail_error'), ('th_is_readonly', '=', True)]}"/>
                     <button name="th_action_send_final_contract_mail" type="object" string="Gửi trả HĐ đủ 2 chữ ký" class="btn-primary"
-                            attrs="{'invisible': ['|', ('state', 'not in', ('valid', 'submitted', 'open')), ('th_final_file_name', '=', 'Chưa có')]}"/>
-                    <button name="action_set_cancel" type="object" string="Hủy" states="draft,open,submitted,valid" class="btn-secondary"/>
-                    <button name="action_set_draft" type="object" string="Khôi phục dự thảo" states="cancel" class="btn-secondary"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,open,submitted,valid,close" options="{'clickable': '1'}"/>
+                            attrs="{'invisible': ['|', ('state', 'not in', ('valid', 'submitted', 'open', 'sent')), ('th_final_file_name', '=', 'Chưa có')]}"/>
+                    <button name="action_set_cancel" type="object" string="Hủy"
+                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open', 'sent', 'submitted', 'valid', 'mail_error')), ('th_is_readonly', '=', True)]}" class="btn-secondary"/>
+                    <button name="action_set_draft" type="object" string="Khôi phục dự thảo"
+                            attrs="{'invisible': [('state', 'not in', ('cancel', 'mail_error'))]}" class="btn-secondary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,open,sent,submitted,valid,close" options="{'clickable': '1'}"
+                           attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
                 </header>
                 <sheet>
+                    <field name="th_is_readonly" invisible="1"/>
                     <style>
                         .ribbon {
                             margin-top: 21px !important;
@@ -166,42 +164,45 @@
                     <field name="th_company_file_name" invisible="1"/>
                     <field name="th_final_file_name" invisible="1"/>
                     <field name="th_is_valid_confirmed" invisible="1"/>
-                    <div class="alert alert-danger" role="alert" attrs="{'invisible': [('th_mail_error', '=', False)]}">
-                        <strong>Lỗi gửi email: 
-                        </strong>
-                        <field name="th_mail_error" readonly="1" class="d-inline"/>
-                    </div>
+                    <field name="th_mail_error" invisible="1"/>
                     <div class="alert alert-success d-flex align-items-center mb-2" role="alert" attrs="{'invisible': [('th_is_valid_confirmed', '=', False)]}">
                         <span>Đã xác nhận hợp lệ bởi 
-                            <field name="th_valid_confirmed_user_id" readonly="1" class="fw-bold d-inline"/> vào ngày 
+                            <field name="th_valid_confirmed_user_id" readonly="1" class="fw-bold d-inline" options="{'no_open': True}"/> vào ngày 
                             <field name="th_valid_confirmed_date" readonly="1" class="d-inline"/>.
                         </span>
                     </div>
                     <div class="oe_title">
                         <label for="th_code" class="oe_edit_only"/>
                         <h2>
-                            <field name="th_code" placeholder="Mã hợp đồng" required="1"/>
+                            <field name="th_code" placeholder="Mã hợp đồng" required="1"
+                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
                         </h2>
                         <label for="name" class="oe_edit_only"/>
                         <h1>
-                            <field name="name" placeholder="Tên hợp đồng" required="1"/>
+                            <field name="name" placeholder="Tên hợp đồng" required="1"
+                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
                         </h1>
                     </div>
                     <group>
                         <group>
-                            <field name="th_collaborator_id" options="{'no_create_edit': True}"/>
+                            <field name="th_collaborator_id" options="{'no_open': True, 'no_create': True, 'no_create_edit': True}" required="1"
+                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
                             <field name="th_phone" widget="phone"/>
                             <field name="th_email" widget="email"/>
-                            <field name="user_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="user_id" options="{'no_open': True, 'no_create': True, 'no_create_edit': True}" required="1"
+                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
                             <field name="th_contract_type_ids" widget="many2many_tags"
-                                   options="{'no_create': True, 'no_create_edit': True}"/>
-                            <field name="th_batch_date"/>
+                                   options="{'no_open': True, 'no_create': True, 'no_create_edit': True}" required="1"
+                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
+                            <field name="th_batch_date" required="1"
+                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
                         </group>
                         <group>
-                            <field name="date_start"/>
-                            <field name="date_end"/>
+                            <field name="date_start" required="1"
+                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
+                            <field name="date_end" required="1"
+                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
                             <field name="th_expiration_status"/>
-                            <field name="th_confirmation_status"/>
                             <field name="th_is_signed" readonly="1"/>
                             <field name="th_mail_sent_date" readonly="1"/>
                             <field name="th_last_upload_date" readonly="1"/>
@@ -209,15 +210,16 @@
                     </group>
                     <notebook>
                         <page string="Danh sách tệp hợp đồng" name="th_documents">
-                            <field name="th_document_ids" nolabel="1">
-                                <tree create="false">
+                            <field name="th_document_ids" nolabel="1"
+                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}">
+                                <tree create="false" no_open="1">
                                     <field name="name" string="Tên tệp"/>
                                     <field name="th_document_type"/>
                                     <field name="th_file" filename="th_file_name" widget="binary" string="Tệp đính kèm"/>
                                     <field name="th_file_name" invisible="1"/>
                                     <field name="th_uploaded_by"/>
                                     <field name="th_upload_date" readonly="1"/>
-                                    <field name="th_user_id" widget="many2one_avatar_user" readonly="1" optional="show"/>
+                                    <field name="th_user_id" widget="many2one_avatar_user" readonly="1" optional="show" options="{'no_open': True}"/>
                                     <field name="th_notes"/>
                                 </tree></field>
                         </page>
@@ -228,6 +230,7 @@
                                     <field name="th_upload_url" widget="CopyClipboardChar" readonly="1"/>
                                     <button name="th_action_regenerate_token" type="object"
                                             string="Tạo lại link" class="btn-link"
+                                            attrs="{'invisible': [('th_is_readonly', '=', True)]}"
                                             confirm="Tạo lại link upload sẽ vô hiệu hóa đường link cũ đã gửi cho CTV. Bạn có chắc muốn tiếp tục?"/>
                                 </div>
                             </group>
@@ -255,28 +258,31 @@
                 <field name="th_batch_date"/>
                 <filter name="filter_state_draft" string="Dự thảo" domain="[('state', '=', 'draft')]"/>
                 <filter name="filter_state_open" string="Đang thực hiện" domain="[('state', '=', 'open')]"/>
+                <filter name="filter_state_sent" string="Gửi mail (Đã gửi)" domain="[('state', '=', 'sent')]"/>
                 <filter name="filter_state_submitted" string="Đã nộp" domain="[('state', '=', 'submitted')]"/>
                 <filter name="filter_state_valid" string="Đã duyệt hợp lệ" domain="[('state', '=', 'valid')]"/>
                 <filter name="filter_state_close" string="Hoàn tất" domain="[('state', '=', 'close')]"/>
+                <filter name="filter_state_mail_error" string="Gửi mail lỗi" domain="[('state', '=', 'mail_error')]"/>
+                <filter name="filter_state_cancel" string="Đã hủy" domain="[('state', '=', 'cancel')]"/>
+                <separator/>
+                <filter name="filter_not_sent" string="Chưa gửi mail" domain="[('state', '=', 'open')]"/>
+                <filter name="filter_mail_sent" string="Đã gửi mail" domain="[('state', '=', 'sent')]"/>
+                <filter name="filter_mail_error" string="Lỗi gửi mail" domain="['|', ('state', '=', 'mail_error'), ('th_mail_error', '!=', False)]"/>
                 <separator/>
                 <filter name="filter_valid_confirmed" string="Đã duyệt hợp lệ" domain="[('th_is_valid_confirmed', '=', True)]"/>
                 <filter name="filter_waiting_valid" string="Chờ duyệt hợp lệ" domain="[('th_is_valid_confirmed', '=', False), ('state', '=', 'submitted')]"/>
                 <filter name="filter_has_final" string="Đã có bản 2 chữ ký" domain="[('th_final_attachment_id', '!=', False)]"/>
                 <separator/>
-                <filter name="filter_mail_sent" string="Đã gửi mail" domain="[('th_mail_sent_date', '!=', False)]"/>
-                <filter name="filter_mail_error" string="Lỗi gửi mail" domain="[('th_mail_error', '!=', False)]"/>
-                <separator/>
                 <filter name="filter_uploaded" string="CTV đã nộp file" domain="[('th_self_attachment_ids', '!=', False)]"/>
-                <filter name="filter_not_uploaded" string="Chưa nộp file" domain="[('th_self_attachment_ids', '=', False), ('state', '=', 'open')]"/>
+                <filter name="filter_not_uploaded" string="Chưa nộp file" domain="[('th_self_attachment_ids', '=', False), ('state', 'in', ('open', 'sent'))]"/>
                 <separator/>
                 <filter name="filter_contract_expired" string="Hợp đồng hết hạn" domain="[('th_is_expired', '=', True)]"/>
                 <filter name="filter_contract_not_expired" string="Hợp đồng chưa hết hạn" domain="[('th_is_expired', '=', False)]"/>
-                <filter name="filter_overdue_submission" string="Quá hạn nộp" domain="[('date_end', '&lt;', context_today().strftime('%Y-%m-%d')), ('state', '=', 'open')]"/>
+                <filter name="filter_overdue_submission" string="Quá hạn nộp" domain="[('date_end', '&lt;', context_today().strftime('%Y-%m-%d')), ('state', 'in', ('open', 'sent'))]"/>
                 <group expand="0" string="Gom nhóm">
                     <filter name="group_collaborator" string="Cộng tác viên" context="{'group_by': 'th_collaborator_id'}"/>
                     <filter name="group_user" string="Người phụ trách" context="{'group_by': 'user_id'}"/>
                     <filter name="group_batch_date" string="Ngày đẩy hợp đồng" context="{'group_by': 'th_batch_date'}"/>
-                    <filter name="group_confirmation_status" string="Tiến độ hợp đồng" context="{'group_by': 'th_confirmation_status'}"/>
                     <filter name="group_state" string="Trạng thái" context="{'group_by': 'state'}"/>
                 </group>
                 <searchpanel>

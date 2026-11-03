@@ -66,11 +66,16 @@ class ThCollaboratorController(http.Controller):
         contract = self._get_contract_by_token(token)
         if not contract:
             return request.not_found()
-        return self._render_upload_page({
+        values = {
             'token': token,
             'contract': contract,
             'profile': contract.th_collaborator_id,
-        })
+        }
+        if contract.state in ('close', 'cancel'):
+            values['error'] = _('Hợp đồng này đã hoàn tất hoặc đã hủy, cổng tiếp nhận tệp đã đóng.')
+        elif contract.th_is_expired:
+            values['error'] = _('Hợp đồng này đã hết hạn hiệu lực, cổng tiếp nhận tệp đã đóng.')
+        return self._render_upload_page(values)
 
     @http.route('/th_collaborator/upload/<string:token>/submit', type='http', auth='public', website=True, methods=['POST'])
     def submit_upload_form(self, token, **kwargs):
@@ -86,9 +91,12 @@ class ThCollaboratorController(http.Controller):
             'profile': profile,
         }
 
-        # 1. Kiểm tra trạng thái hợp đồng: Nếu đã hủy thì từ chối tiếp nhận
-        if contract.state == 'cancel':
-            values['error'] = _('Hợp đồng này đã bị hủy, không thể tiếp nhận tệp tải lên.')
+        # 1. Kiểm tra trạng thái hợp đồng: Nếu đã hoàn tất, hủy hoặc hết hạn thì từ chối tiếp nhận
+        if contract.state in ('close', 'cancel'):
+            values['error'] = _('Hợp đồng này đã kết thúc hoặc đã hủy, cổng tiếp nhận đã đóng.')
+            return self._render_upload_page(values)
+        if contract.th_is_expired:
+            values['error'] = _('Hợp đồng này đã hết hạn hiệu lực, không thể tiếp nhận thêm tệp.')
             return self._render_upload_page(values)
 
         # 2. Đọc và kiểm tra các file tải lên
@@ -114,7 +122,7 @@ class ThCollaboratorController(http.Controller):
         contract.check_access_rule('read')
 
         if contract_type == 'company':
-            attachments = contract.th_company_attachment_ids
+            attachments = contract._get_company_mail_attachments()
         elif contract_type == 'self':
             attachments = contract.th_self_attachment_ids
         else:
