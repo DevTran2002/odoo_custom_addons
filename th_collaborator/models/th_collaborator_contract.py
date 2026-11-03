@@ -306,12 +306,6 @@ class ThCollaboratorContract(models.Model):
                         raise UserError(
                             _('Không thể chuyển sang trạng thái "Gửi mail": Người phụ trách chưa có địa chỉ email.')
                         )
-                    mail_sent_date = vals.get('th_mail_sent_date') or rec.th_mail_sent_date
-                    if not mail_sent_date:
-                        raise UserError(
-                            _('Không thể chuyển sang trạng thái "Gửi mail": Hợp đồng "%s" chưa được phát hành email qua hệ thống. Vui lòng bấm nút "Gửi mail hợp đồng".')
-                            % rec.name
-                        )
 
                 elif new_state == 'submitted':
                     if current_state not in ('sent', 'submitted'):
@@ -379,18 +373,19 @@ class ThCollaboratorContract(models.Model):
 
                 elif new_state == 'close':
                     has_final_file = bool(
+                        vals.get('th_final_attachment_id') or
                         rec.th_final_attachment_id or
                         rec.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')
                     )
-                    is_pre_signed_completed = bool(
-                        rec.th_document_ids.filtered(lambda d: d.th_document_type == 'company_signed') and
-                        rec.th_document_ids.filtered(lambda d: d.th_document_type in ('ctv_signed', 'ctv_digital_signed'))
-                    )
-                    if not has_final_file and not is_pre_signed_completed:
+                    if not has_final_file:
                         raise UserError(
-                            _('Không thể chuyển sang trạng thái "Hoàn tất": Hợp đồng "%s" chưa có tệp bản ký hoàn tất đủ 2 chữ ký.')
+                            _('Không thể chuyển sang trạng thái "Hoàn tất": Hợp đồng "%s" chưa có bản hợp đồng đánh dấu đủ 2 chữ ký.')
                             % rec.name
                         )
+                    if not rec.th_final_attachment_id and not vals.get('th_final_attachment_id'):
+                        final_doc = rec.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')[:1]
+                        if final_doc and final_doc.th_attachment_id:
+                            vals['th_final_attachment_id'] = final_doc.th_attachment_id.id
 
         old_states = {rec.id: rec.state for rec in self} if 'state' in vals else {}
         res = super().write(vals)
@@ -402,6 +397,17 @@ class ThCollaboratorContract(models.Model):
                         body=_('Nhân sự %s đã kiểm tra và chuyển trạng thái hợp đồng sang Đã duyệt hợp lệ.')
                         % self.env.user.name
                     )
+
+        if vals.get('state') == 'sent':
+            for rec in self:
+                if old_states.get(rec.id) != 'sent':
+                    if not rec.th_mail_sent_date:
+                        rec.message_post(
+                            body=_('Nhân sự %s đã xác nhận chuyển trạng thái sang "Gửi mail" thủ công (Hợp đồng chưa phát hành email qua hệ thống).')
+                            % self.env.user.name
+                        )
+                    if rec.th_mail_error:
+                        rec.th_mail_error = False
 
         if 'th_company_attachment_ids' in vals or 'th_self_attachment_ids' in vals or 'th_final_attachment_id' in vals:
             self._link_contract_attachments()
@@ -422,8 +428,26 @@ class ThCollaboratorContract(models.Model):
         """Chuyển hợp đồng về trạng thái dự thảo."""
         self.write({'state': 'draft'})
 
+    def action_set_sent(self):
+        """Chuyển hợp đồng sang trạng thái Gửi mail thủ công."""
+        self.write({'state': 'sent'})
+
     def action_set_close(self):
-        """Chuyển hợp đồng sang trạng thái hoàn tất."""
+        """Chuyển hợp đồng sang trạng thái hoàn tất khi đã có đủ bản 2 chữ ký."""
+        for rec in self:
+            has_final_file = bool(
+                rec.th_final_attachment_id or
+                rec.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')
+            )
+            if not has_final_file:
+                raise UserError(
+                    _('Không thể hoàn tất hợp đồng "%s": Chưa có bản hợp đồng đánh dấu đủ 2 chữ ký.')
+                    % rec.name
+                )
+            if not rec.th_final_attachment_id:
+                final_doc = rec.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')[:1]
+                if final_doc and final_doc.th_attachment_id:
+                    rec.th_final_attachment_id = final_doc.th_attachment_id.id
         self.write({'state': 'close'})
 
     def action_set_cancel(self):
@@ -869,7 +893,7 @@ class ThCollaboratorContract(models.Model):
             raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc đã Hết hạn, không thể tải lên thêm tệp.'))
         if self.state in ('close', 'cancel'):
             raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể tải lên thêm tệp.'))
-        default_doc_type = 'final_signed' if self.state in ('pending_sign', 'valid') else False
+        default_doc_type = 'final_signed' if self.state in ('submitted', 'pending_sign', 'valid') else False
         return {
             'name': _('Tải lên tệp hợp đồng'),
             'type': 'ir.actions.act_window',

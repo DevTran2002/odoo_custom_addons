@@ -25,6 +25,7 @@
     'assets': {
         'web.assets_backend': [
             'th_collaborator/static/src/scss/th_collaborator.scss',
+            'th_collaborator/static/src/js/th_collaborator_statusbar.js',
         ],
     },
     'installable': True,
