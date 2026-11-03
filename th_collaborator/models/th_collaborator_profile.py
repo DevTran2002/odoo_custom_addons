@@ -49,8 +49,6 @@ class ThCollaboratorProfile(models.Model):
         domain=[('state', '=', 'close')])
     th_contract_count = fields.Integer(
         string='Số lượng hợp đồng', compute='_compute_contract_counts')
-    th_running_contract_count = fields.Integer(
-        string='Số HĐ đang chạy', compute='_compute_contract_counts')
 
     th_mail_sent_count = fields.Integer(string='Đã gửi', compute='_compute_mail_statistics')
     th_mail_delivered_count = fields.Integer(string='Đã nhận (SL)', compute='_compute_mail_statistics')
@@ -63,13 +61,11 @@ class ThCollaboratorProfile(models.Model):
          'Số điện thoại đã tồn tại ở một CTV khác.'),
     ]
 
-    @api.depends('th_contract_ids', 'th_contract_ids.state')
+    @api.depends('th_contract_ids')
     def _compute_contract_counts(self):
-        """Đếm tổng số hợp đồng và số lượng hợp đồng đang chạy của CTV."""
+        """Đếm tổng số lượng hợp đồng của CTV."""
         for rec in self:
-            contracts = rec.th_contract_ids
-            rec.th_contract_count = len(contracts)
-            rec.th_running_contract_count = len(contracts.filtered(lambda c: c.state == 'open'))
+            rec.th_contract_count = len(rec.th_contract_ids)
 
     @api.model
     def _normalize_phone(self, phone):

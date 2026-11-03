@@ -17,7 +17,6 @@
                 <field name="th_birthday" optional="hide"/>
                 <field name="user_id" widget="many2one_avatar_user"/>
                 <field name="th_contract_count" string="Tổng số HĐ"/>
-                <field name="th_running_contract_count" string="HĐ đang chạy"/>
             </tree>
         </field>
     </record>
@@ -66,9 +65,6 @@
                             <field name="user_id" required="1" options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="th_birthday" required="1"/>
                         </group>
-                        <group string="Hợp đồng">
-                            <field name="th_running_contract_count" readonly="1"/>
-                        </group>
                         <group string="Định danh &amp; Thuế">
                             <field name="th_identification_id" required="1"/>
                             <field name="th_id_issue_date" required="1"/>
@@ -88,6 +84,9 @@
                                     <field name="name" string="Tên hợp đồng"/>
                                     <field name="th_contract_type_ids" widget="many2many_tags" options="{'color_field': 'th_color'}"/>
                                     <field name="th_final_file_name" string="Hợp đồng đủ 2 chữ ký"/>
+                                    <field name="th_expiration_status" widget="badge" optional="show"
+                                            decoration-danger="th_expiration_status == 'expired'"
+                                            decoration-success="th_expiration_status == 'valid'"/>
                                     <field name="date_start" string="Ngày bắt đầu" optional="show"/>
                                     <field name="date_end" string="Ngày kết thúc" optional="show"/>
                                     <button name="th_action_download_final_contracts" type="object" icon="fa-download"
