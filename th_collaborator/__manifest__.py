@@ -18,6 +18,7 @@
         'views/th_collaborator_upload_templates.xml',
         'wizard/th_collaborator_upload_wizard_views.xml',
         'wizard/th_collaborator_contract_document_wizard_views.xml',
+        'wizard/th_collaborator_contract_batch_wizard_views.xml',
         'views/th_collaborator_mail_sent_views.xml',
         'views/res_config_settings_views.xml',
         'views/th_collaborator_menus.xml',

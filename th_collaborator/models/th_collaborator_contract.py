@@ -949,6 +949,69 @@ class ThCollaboratorContract(models.Model):
         """Tải tệp hợp đồng hoàn tất đủ chữ ký hai bên về máy."""
         return self._get_download_contract_action('final')
 
+    def action_open_batch_contract_wizard(self):
+        """Mở cửa sổ wizard thao tác tải / nạp hàng loạt cho các hợp đồng đã chọn."""
+        if not self:
+            raise UserError(_('Vui lòng chọn ít nhất 1 hợp đồng.'))
+        return {
+            'name': _('Thao tác tệp hợp đồng hàng loạt'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'th.collaborator.contract.batch.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_th_contract_ids': [Command.set(self.ids)],
+            },
+        }
+
+    def action_open_batch_company_wizard(self):
+        """Mở cửa sổ thao tác tải / nạp hàng loạt cho HĐ công ty."""
+        if not self:
+            raise UserError(_('Vui lòng chọn ít nhất 1 hợp đồng.'))
+        return {
+            'name': _('HĐ Công ty - Tải / Nạp hàng loạt'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'th.collaborator.contract.batch.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_th_contract_type': 'company',
+                'default_th_contract_ids': [Command.set(self.ids)],
+            },
+        }
+
+    def action_open_batch_self_wizard(self):
+        """Mở cửa sổ thao tác tải / nạp hàng loạt cho HĐ CTV nộp."""
+        if not self:
+            raise UserError(_('Vui lòng chọn ít nhất 1 hợp đồng.'))
+        return {
+            'name': _('HĐ CTV nộp - Tải / Nạp hàng loạt'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'th.collaborator.contract.batch.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_th_contract_type': 'self',
+                'default_th_contract_ids': [Command.set(self.ids)],
+            },
+        }
+
+    def action_open_batch_final_wizard(self):
+        """Mở cửa sổ thao tác tải / nạp hàng loạt cho HĐ hoàn tất đủ 2 chữ ký."""
+        if not self:
+            raise UserError(_('Vui lòng chọn ít nhất 1 hợp đồng.'))
+        return {
+            'name': _('HĐ Hoàn tất - Tải / Nạp hàng loạt'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'th.collaborator.contract.batch.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_th_contract_type': 'final',
+                'default_th_contract_ids': [Command.set(self.ids)],
+            },
+        }
+
     @api.model
     def th_cron_send_contract_reminders(self):
         """Cron job hằng ngày: Cập nhật hạn hợp đồng và gửi email nhắc nhở nộp hợp đồng."""

@@ -9,9 +9,7 @@
                 <header>
                     <button name="th_action_send_contract_mail_batch" type="object" string="Gửi mail hợp đồng"
                             confirm="Bạn có chắc chắn muốn gửi email cho các hợp đồng đã chọn không?"/>
-                    <button name="th_action_download_company_contracts" type="object" string="Tải HĐ công ty"/>
-                    <button name="th_action_download_self_contracts" type="object" string="Tải HĐ CTV nộp"/>
-                    <button name="th_action_download_final_contracts" type="object" string="Tải HĐ hoàn tất"/>
+                    <button name="action_open_batch_contract_wizard" type="object" string="Tải / Nạp tệp hàng loạt"/>
                 </header>
                 <field name="th_code"/>
                 <field name="name"/>

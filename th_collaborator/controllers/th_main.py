@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
+import io
 import logging
 import os
 import re
+import zipfile
 
-from odoo import _, http
+from odoo import _, fields, http
 from odoo.http import content_disposition, request
 
 from odoo.addons.th_collaborator.models.th_collaborator_profile import TH_CONTRACT_ALLOWED_EXTENSIONS
@@ -143,5 +145,95 @@ class ThCollaboratorController(http.Controller):
                 ('Content-Type', attachment.mimetype or 'application/octet-stream'),
                 ('Content-Length', len(file_content or b'')),
                 ('Content-Disposition', content_disposition(download_filename)),
+            ]
+        )
+
+    @http.route('/th_collaborator/download_batch', type='http', auth='user', methods=['GET'])
+    def download_batch_contract_files(self, contract_ids='', contract_type='company', **kwargs):
+        """Tải gói tệp ZIP chứa toàn bộ tài liệu hợp đồng của các bản ghi đã chọn."""
+        if not contract_ids:
+            return request.not_found()
+
+        id_list = [int(i.strip()) for i in contract_ids.split(',') if i.strip().isdigit()]
+        if not id_list:
+            return request.not_found()
+
+        contracts = request.env['th.collaborator.contract'].browse(id_list).exists()
+        if not contracts:
+            return request.not_found()
+
+        contracts.check_access_rights('read')
+        contracts.check_access_rule('read')
+
+        zip_buffer = io.BytesIO()
+        used_filenames = set()
+        file_count = 0
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for idx, contract in enumerate(contracts, start=1):
+                if contract_type == 'company':
+                    attachments = contract._get_company_mail_attachments()
+                elif contract_type == 'self':
+                    attachments = contract.th_self_attachment_ids
+                else:
+                    attachments = contract.th_final_attachment_id
+
+                if not attachments:
+                    continue
+
+                folder_code = contract.th_code or 'AUM-HĐDVTT'
+                ctv_name = re.sub(r'[\\/:*?"<>|]+', '_', contract.th_collaborator_id.name or 'CTV').strip()
+
+                for sub_idx, att in enumerate(attachments, start=1):
+                    file_content = att.raw
+                    if not file_content and att.store_fname:
+                        full_path = att._full_path(att.store_fname)
+                        if os.path.isfile(full_path):
+                            with open(full_path, 'rb') as f:
+                                file_content = f.read()
+
+                    if not file_content:
+                        continue
+
+                    ext = os.path.splitext(att.name or '')[1].lower() or '.pdf'
+                    if len(attachments) > 1:
+                        entry_name = f"{idx:02d}_{sub_idx:02d}.{folder_code} - {ctv_name}{ext}"
+                    else:
+                        entry_name = f"{idx:02d}.{folder_code} - {ctv_name}{ext}"
+
+                    # Tránh xung đột trùng tên tệp trong file nén ZIP
+                    unique_name = entry_name
+                    counter = 1
+                    while unique_name in used_filenames:
+                        name_without_ext, name_ext = os.path.splitext(entry_name)
+                        unique_name = f"{name_without_ext}_{counter}{name_ext}"
+                        counter += 1
+
+                    used_filenames.add(unique_name)
+                    zip_file.writestr(unique_name, file_content)
+                    file_count += 1
+
+        if file_count == 0:
+            return request.not_found()
+
+        type_suffix = {
+            'company': 'HD_CongTy',
+            'self': 'HD_CTV_Nop',
+            'final': 'HD_HoanTat',
+        }.get(contract_type, 'HopDong')
+
+        today_str = fields.Date.today().strftime('%Y%m%d')
+        zip_filename = f"{type_suffix}_{today_str}.zip"
+
+        _logger.info('User %s downloaded batch ZIP %s with %s files for %s contracts',
+                     request.env.uid, zip_filename, file_count, len(contracts))
+
+        zip_buffer.seek(0)
+        return request.make_response(
+            zip_buffer.getvalue(),
+            headers=[
+                ('Content-Type', 'application/zip'),
+                ('Content-Length', len(zip_buffer.getvalue())),
+                ('Content-Disposition', content_disposition(zip_filename)),
             ]
         )
