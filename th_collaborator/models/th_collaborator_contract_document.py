@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
-import base64
 
 
 class ThCollaboratorContractDocument(models.Model):
-    """Tệp tài liệu hợp đồng CTV theo các giai đoạn quy trình ký."""
+    """Quản lý các tệp tài liệu hợp đồng CTV theo từng giai đoạn ký."""
     _name = 'th.collaborator.contract.document'
     _description = 'Tệp tài liệu hợp đồng CTV'
     _order = 'th_upload_date desc, id desc'
@@ -42,15 +41,13 @@ class ThCollaboratorContractDocument(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Khi tạo bản ghi tài liệu mới, nếu có file đính kèm thì đồng bộ name và tạo ir.attachment nếu cần."""
+        """Tạo bản ghi tài liệu hợp đồng và tự động sinh bản ghi ir.attachment tương ứng."""
         for vals in vals_list:
             if not vals.get('name') and vals.get('th_file_name'):
                 vals['name'] = vals['th_file_name']
         records = super().create(vals_list)
         for rec in records:
-            # Đồng bộ liên kết ir.attachment để hỗ trợ các tiện ích hệ thống
             if not rec.th_attachment_id and rec.th_file:
-                # sudo: Cho phép tạo attachment đính kèm chuẩn xác vào hợp đồng
                 att = self.env['ir.attachment'].sudo().create({
                     'name': rec.name or rec.th_file_name or 'contract_document.pdf',
                     'datas': rec.th_file,
@@ -61,7 +58,7 @@ class ThCollaboratorContractDocument(models.Model):
         return records
 
     def write(self, vals):
-        """Cập nhật tài liệu hợp đồng và đồng bộ sang tệp đính kèm hệ thống (ir.attachment)."""
+        """Cập nhật thông tin tài liệu và đồng bộ tên, dữ liệu sang ir.attachment."""
         res = super().write(vals)
         if any(f in vals for f in ('name', 'th_file', 'th_file_name')):
             for rec in self:
@@ -72,7 +69,6 @@ class ThCollaboratorContractDocument(models.Model):
                     if 'name' in vals or 'th_file_name' in vals:
                         att_vals['name'] = rec.name or rec.th_file_name or 'contract_document.pdf'
                     if att_vals:
-                        # sudo: Đồng bộ nội dung và tên tệp đính kèm sang ir.attachment
                         rec.th_attachment_id.sudo().write(att_vals)
         return res
 
@@ -92,4 +88,3 @@ class ThCollaboratorContractDocument(models.Model):
                 'target': 'self',
             }
         raise UserError(_('Không tìm thấy tệp đính kèm để tải về.'))
-

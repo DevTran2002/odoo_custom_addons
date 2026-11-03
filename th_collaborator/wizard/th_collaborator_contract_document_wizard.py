@@ -5,7 +5,7 @@ from odoo.fields import Command
 
 
 class ThCollaboratorContractDocumentWizard(models.TransientModel):
-    """Wizard hỗ trợ nhân sự công ty tải lên tệp hợp đồng cho một bản ghi cụ thể."""
+    """Hỗ trợ nhân viên tải lên tệp hợp đồng cho một bản ghi hợp đồng cụ thể."""
     _name = 'th.collaborator.contract.document.wizard'
     _description = 'Wizard tải lên tệp hợp đồng'
 
@@ -32,18 +32,18 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
 
     @api.onchange('th_file_name')
     def _onchange_th_file_name(self):
-        """Tự động cập nhật tên hiển thị tài liệu ngay trên giao diện khi chọn tệp."""
+        """Tự động cập nhật tên hiển thị tài liệu ngay trên giao diện khi người dùng chọn tệp."""
         if self.th_file_name:
             self.name = self.th_file_name
 
     @api.depends('th_file_name')
     def _compute_name(self):
-        """Tự động cập nhật tên hiển thị tài liệu theo tên tệp đính kèm được chọn."""
+        """Tự động đồng bộ tên hiển thị tài liệu theo tên tệp đính kèm được chọn."""
         for rec in self:
             rec.name = rec.th_file_name or False
 
     def action_confirm_upload(self):
-        """Xử lý tạo tài liệu hợp đồng và đồng bộ vào hợp đồng mục tiêu."""
+        """Xử lý khởi tạo tài liệu hợp đồng và liên kết vào hợp đồng mục tiêu."""
         self.ensure_one()
         if not self.th_document_type:
             raise UserError(_('Vui lòng chọn Phân loại bản ký.'))
@@ -57,7 +57,6 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
         display_name = self.name or self.th_file_name or _('Tài liệu hợp đồng')
         contract = self.th_contract_id
 
-        # Tạo bản ghi tệp hợp đồng mới
         doc_vals = {
             'name': display_name,
             'th_contract_id': contract.id,
@@ -71,7 +70,6 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
         }
         new_doc = self.env['th.collaborator.contract.document'].create(doc_vals)
 
-        # Đồng bộ ngược vào các trường attachment truyền thống để giữ tính tương thích
         if new_doc.th_attachment_id:
             if self.th_document_type in ('company_raw', 'company_signed'):
                 contract.write({
@@ -82,7 +80,6 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
                     'th_final_attachment_id': new_doc.th_attachment_id.id,
                 })
 
-        # Ghi log lịch sử thao tác vào chatter hợp đồng
         doc_type_label = dict(self._fields['th_document_type'].selection).get(self.th_document_type)
         contract.message_post(
             body=_('Nhân sự công ty đã tải lên tệp "%s" (Phân loại: %s).') % (display_name, doc_type_label)

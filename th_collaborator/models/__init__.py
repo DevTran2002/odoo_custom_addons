@@ -5,4 +5,3 @@ from . import th_collaborator_contract
 from . import th_collaborator_profile
 from . import th_collaborator_mail_sent
 from . import res_config_settings
-from . import th_collaborator_deprecated

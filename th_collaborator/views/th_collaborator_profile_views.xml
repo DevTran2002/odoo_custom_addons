@@ -90,7 +90,7 @@
                                     <field name="th_final_file_name" string="Hợp đồng đủ 2 chữ ký"/>
                                     <field name="date_start" string="Ngày bắt đầu" optional="show"/>
                                     <field name="date_end" string="Ngày kết thúc" optional="show"/>
-                                    <button name="th_action_download_single_final_file" type="object" icon="fa-download"
+                                    <button name="th_action_download_final_contracts" type="object" icon="fa-download"
                                             title="Tải tệp hoàn tất 2 chữ ký" class="text-success"
                                             attrs="{'invisible': [('th_final_file_name', '=', 'Chưa có')]}"/>
                                     <button name="action_open_contract_form" type="object" icon="fa-external-link"

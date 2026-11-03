@@ -11,29 +11,20 @@ from odoo.addons.th_collaborator.models.th_collaborator_profile import TH_CONTRA
 _logger = logging.getLogger(__name__)
 
 TH_UPLOAD_MAX_FILES = 10
-TH_UPLOAD_MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB / file
+TH_UPLOAD_MAX_FILE_SIZE = 20 * 1024 * 1024
 
 
 class ThCollaboratorController(http.Controller):
 
     def _get_contract_by_token(self, token):
-        """Tìm Hợp đồng theo token của link upload (hỗ trợ tương thích ngược với token CTV cũ)."""
+        """Tìm bản ghi hợp đồng theo token upload công khai."""
         Contract = request.env['th.collaborator.contract']
         if not token or len(token) < 20:
             return Contract.browse()
-        # sudo: CTV truy cập cổng công khai không có phiên đăng nhập nhân viên nội bộ;
-        # chỉ tra đúng 1 bản ghi hợp đồng theo token bảo mật ngẫu nhiên, không làm lộ các dữ liệu khác.
-        contract = Contract.sudo().search([('th_access_token', '=', token)], limit=1)
-        if not contract:
-            # Hỗ trợ tương thích ngược: Tìm theo token cũ trên hồ sơ CTV nếu có link đã gửi trước đây
-            Profile = request.env['th.collaborator.profile']
-            profile = Profile.sudo().search([('th_access_token', '=', token)], limit=1)
-            if profile:
-                contract = profile.sudo().th_contract_ids.filtered(lambda c: c.state != 'cancel')[:1]
-        return contract
+        return Contract.sudo().search([('th_access_token', '=', token)], limit=1)
 
     def _render_upload_page(self, values):
-        """Render trang upload hợp đồng công khai."""
+        """Hiển thị giao diện trang tải lên hợp đồng công khai."""
         values.update({
             'th_max_files': TH_UPLOAD_MAX_FILES,
             'th_max_file_size_mb': TH_UPLOAD_MAX_FILE_SIZE // (1024 * 1024),
@@ -42,7 +33,7 @@ class ThCollaboratorController(http.Controller):
         return request.render('th_collaborator.th_collaborator_upload_page_template', values)
 
     def _read_uploaded_files(self):
-        """Đọc và kiểm tra file CTV gửi lên; trả về (danh sách file, lỗi)."""
+        """Đọc và kiểm tra tính hợp lệ của danh sách tệp người dùng gửi lên."""
         storages = [f for f in request.httprequest.files.getlist('th_contract_files') if f.filename]
         if not storages:
             return [], _('Vui lòng chọn ít nhất 1 file hợp đồng.')
@@ -62,7 +53,7 @@ class ThCollaboratorController(http.Controller):
 
     @http.route('/th_collaborator/upload/<string:token>', type='http', auth='public', website=True, methods=['GET'])
     def render_upload_form(self, token, **kwargs):
-        """Hiển thị form portal để CTV tải hợp đồng lên theo từng hợp đồng bằng token bảo mật."""
+        """Hiển thị biểu mẫu tiếp nhận tệp hợp đồng trực tuyến cho CTV."""
         contract = self._get_contract_by_token(token)
         if not contract:
             return request.not_found()
@@ -79,7 +70,7 @@ class ThCollaboratorController(http.Controller):
 
     @http.route('/th_collaborator/upload/<string:token>/submit', type='http', auth='public', website=True, methods=['POST'])
     def submit_upload_form(self, token, **kwargs):
-        """Nhận file hợp đồng CTV gửi lên và gán trực tiếp vào hợp đồng theo token truy cập."""
+        """Xử lý lưu các tệp hợp đồng do CTV gửi lên qua biểu mẫu trực tuyến."""
         contract = self._get_contract_by_token(token)
         if not contract:
             return request.not_found()
@@ -91,7 +82,6 @@ class ThCollaboratorController(http.Controller):
             'profile': profile,
         }
 
-        # 1. Kiểm tra trạng thái hợp đồng: Nếu đã hoàn tất, hủy hoặc hết hạn thì từ chối tiếp nhận
         if contract.state in ('close', 'cancel'):
             values['error'] = _('Hợp đồng này đã kết thúc hoặc đã hủy, cổng tiếp nhận đã đóng.')
             return self._render_upload_page(values)
@@ -99,13 +89,12 @@ class ThCollaboratorController(http.Controller):
             values['error'] = _('Hợp đồng này đã hết hạn hiệu lực, không thể tiếp nhận thêm tệp.')
             return self._render_upload_page(values)
 
-        # 2. Đọc và kiểm tra các file tải lên
         files, error = self._read_uploaded_files()
         if error:
             values['error'] = error
             return self._render_upload_page(values)
 
-        # sudo: Người dùng public nộp file hợp đồng vào đúng bản ghi hợp đồng mục tiêu mà không cần đăng nhập hệ thống nội bộ
+        # sudo: Người dùng công khai nộp tệp hợp đồng trực tiếp theo token mà không cần đăng nhập nội bộ
         upload_type = kwargs.get('th_upload_type', 'signed_template')
         contract.sudo()._add_self_contracts(files, upload_type=upload_type)
 
@@ -115,7 +104,7 @@ class ThCollaboratorController(http.Controller):
 
     @http.route('/th_collaborator/download_file', type='http', auth='user', methods=['GET'])
     def download_contract_file(self, contract_id, contract_type='company', stt='1', **kwargs):
-        """Tải trực tiếp file hợp đồng về máy theo chuẩn [stt].AUM-HĐDVTT/[Tên CTV] mà không cần đóng ZIP."""
+        """Tải trực tiếp tệp hợp đồng về máy người dùng theo tên định dạng chuẩn."""
         contract = request.env['th.collaborator.contract'].browse(int(contract_id)).exists()
         if not contract:
             return request.not_found()

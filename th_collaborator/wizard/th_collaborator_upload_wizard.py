@@ -11,12 +11,7 @@ _logger = logging.getLogger(__name__)
 
 
 class ThCollaboratorUploadWizard(models.TransientModel):
-    """Wizard hỗ trợ nạp hàng loạt file hợp đồng công ty từ máy tính.
-
-    Hỗ trợ 2 chế độ:
-    - Bổ sung hợp đồng mới: Bóc tách SĐT và Mã HĐ từ tên file để tạo mới hợp đồng (state = draft).
-    - Thay thế hợp đồng cũ: Bóc tách SĐT và Mã HĐ để tìm hợp đồng tương ứng, ghi đè file và lưu vết chatter.
-    """
+    """Wizard hỗ trợ nạp hàng loạt file hợp đồng công ty từ máy tính."""
     _name = 'th.collaborator.upload.wizard'
     _description = 'Nạp hợp đồng CTV hàng loạt'
 
@@ -49,7 +44,7 @@ class ThCollaboratorUploadWizard(models.TransientModel):
 
     @api.model
     def default_get(self, fields_list):
-        """Khởi tạo giá trị mặc định, tự động nhận diện hợp đồng nếu mở từ danh sách hợp đồng."""
+        """Khởi tạo giá trị mặc định và tự động điền danh sách hợp đồng mục tiêu nếu mở từ danh sách."""
         res = super().default_get(fields_list)
         active_model = self.env.context.get('active_model')
         active_ids = self.env.context.get('active_ids')
@@ -59,12 +54,7 @@ class ThCollaboratorUploadWizard(models.TransientModel):
         return res
 
     def _extract_phone_and_code(self, file_name):
-        """Bóc tách SĐT, Mã HĐ và phần tên mô tả từ tên tệp tin.
-
-        Quy chuẩn đặt tên: SĐT_MãHĐ[_TênHĐ].pdf (ví dụ: 0912345678_HD01_GiangDay.pdf).
-        :param file_name: Tên file đính kèm
-        :return: (phone, contract_code, custom_name)
-        """
+        """Bóc tách số điện thoại, mã hợp đồng và tên hợp đồng từ tên tệp tin tải lên."""
         Profile = self.env['th.collaborator.profile']
         base_name = os.path.splitext(os.path.basename(file_name))[0]
         tokens = [token.strip() for token in re.split(r'[_\-\s]', base_name) if token.strip()]
@@ -81,7 +71,7 @@ class ThCollaboratorUploadWizard(models.TransientModel):
         return phone, code, custom_name
 
     def th_action_import_contracts(self):
-        """Xử lý nạp hàng loạt file hợp đồng theo chế độ đã chọn."""
+        """Thực hiện xử lý nạp hàng loạt tệp hợp đồng theo chế độ bổ sung mới hoặc thay thế."""
         self.ensure_one()
         if not self.th_attachment_ids:
             raise UserError(_('Vui lòng chọn ít nhất 1 file hợp đồng cần tải lên.'))
@@ -89,7 +79,6 @@ class ThCollaboratorUploadWizard(models.TransientModel):
         Profile = self.env['th.collaborator.profile']
         Contract = self.env['th.collaborator.contract']
 
-        # Kiểm tra định dạng file chỉ cho phép PDF hoặc ảnh
         invalid_files = self.th_attachment_ids.filtered(
             lambda att: not Profile._is_allowed_contract_file(att.name, mimetype=att.mimetype))
         if invalid_files:
@@ -110,7 +99,6 @@ class ThCollaboratorUploadWizard(models.TransientModel):
         updated_contracts = self.env['th.collaborator.contract']
         unmatched_errors = []
 
-        # Tra cứu trước danh sách CTV để tối ưu hiệu năng
         extracted_data = []
         all_phones = set()
         for att in self.th_attachment_ids:
@@ -136,7 +124,6 @@ class ThCollaboratorUploadWizard(models.TransientModel):
             existing_contract = Contract.search([('th_code', '=', code)], limit=1)
 
             if self.th_mode == 'add':
-                # Chế độ 1: Bổ sung hợp đồng mới
                 if existing_contract:
                     unmatched_errors.append(
                         f"{att.name}: Mã HĐ '{code}' đã tồn tại trong hệ thống (HĐ: {existing_contract.name} - CTV: {existing_contract.th_collaborator_id.name}). Vui lòng chọn chế độ Thay thế nếu muốn cập nhật file."
@@ -162,7 +149,6 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                 new_contract.write({
                     'th_company_attachment_ids': [Command.link(att.id)],
                 })
-                # sudo: Tự động ghi nhận dòng tài liệu hợp đồng trong bảng danh sách tệp
                 self.env['th.collaborator.contract.document'].sudo().create({
                     'name': att.name,
                     'th_contract_id': new_contract.id,
@@ -179,10 +165,8 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                 created_contracts |= new_contract
 
             else:
-                # Chế độ 2: Thay thế hợp đồng cũ
                 target_contract = existing_contract
                 if not target_contract:
-                    # Nếu mã HĐ không khớp chính xác, thử tìm theo hồ sơ CTV nếu chỉ có 1 HĐ
                     if len(profile.th_contract_ids) == 1:
                         target_contract = profile.th_contract_ids[0]
                     else:
@@ -207,11 +191,9 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                     'res_model': target_contract._name,
                     'res_id': target_contract.id,
                 })
-                # Ghi đè file công ty bằng file mới tải lên
                 target_contract.write({
                     'th_company_attachment_ids': [Command.set([att.id])],
                 })
-                # sudo: Tự động ghi nhận dòng tài liệu hợp đồng thay thế vào bảng danh sách tệp
                 self.env['th.collaborator.contract.document'].sudo().create({
                     'name': att.name,
                     'th_contract_id': target_contract.id,
@@ -231,10 +213,8 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                 )
                 updated_contracts |= target_contract
 
-        # Dọn dẹp các attachment tạm còn treo tại wizard nếu có
         self.th_attachment_ids.filtered(lambda a: a.res_model == self._name).unlink()
 
-        # Tổng hợp báo cáo kết quả nạp file
         result_lines = []
         if self.th_mode == 'add':
             result_lines.append(_('Tạo mới thành công %s hợp đồng.') % len(created_contracts))

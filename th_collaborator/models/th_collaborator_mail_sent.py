@@ -49,7 +49,6 @@ class MailMail(models.Model):
                 contract = mail.th_contract_id
                 if contract and contract.state in ('draft', 'open', 'sent'):
                     err_msg = mail.failure_reason or _('Lỗi máy chủ khi gửi thư (SMTP).')
-                    # Ghi nhận trạng thái gửi mail lỗi cho hợp đồng
                     contract.write({
                         'state': 'mail_error',
                         'th_mail_error': err_msg,
@@ -59,7 +58,6 @@ class MailMail(models.Model):
             for mail in self:
                 contract = mail.th_contract_id
                 if contract and contract.state == 'mail_error':
-                    # Email gửi lại thành công, khôi phục trạng thái gửi mail
                     contract.write({
                         'state': 'sent',
                         'th_mail_error': False,
@@ -70,7 +68,7 @@ class MailMail(models.Model):
 
 
 class ThCollaboratorMailSent(models.Model):
-    """Model view SQL để hiển thị danh sách và chi tiết email đã gửi cho Cộng tác viên."""
+    """Mô hình SQL View hiển thị danh sách và chi tiết email đã gửi cho Cộng tác viên."""
     _name = 'th.collaborator.mail.sent'
     _description = 'Mail đã gửi cho cộng tác viên'
     _auto = False
@@ -99,7 +97,7 @@ class ThCollaboratorMailSent(models.Model):
     name = fields.Char('Tên hiển thị', readonly=True)
 
     def init(self):
-        """Khởi tạo hoặc cập nhật SQL View th_collaborator_mail_sent."""
+        """Khởi tạo hoặc cập nhật định nghĩa SQL View th_collaborator_mail_sent."""
         tools.drop_view_if_exists(self.env.cr, self._table)
         self.env.cr.execute("""
             CREATE OR REPLACE VIEW th_collaborator_mail_sent AS (
@@ -139,4 +137,3 @@ class ThCollaboratorMailSent(models.Model):
                 ORDER BY msg.date DESC, mm.id DESC
             )
         """)
-

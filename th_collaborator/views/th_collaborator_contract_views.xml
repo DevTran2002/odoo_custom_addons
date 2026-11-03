@@ -36,11 +36,11 @@
                        decoration-danger="state in ('cancel', 'mail_error')"/>
                 <field name="th_last_history_note" string="Lịch sử thao tác" optional="show"/>
                 <!-- Nút thao tác trên từng dòng -->
-                <button name="th_action_download_single_company_file" type="object" icon="fa-file-text-o"
+                <button name="th_action_download_company_contracts" type="object" icon="fa-file-text-o"
                         title="Tải tệp công ty cung cấp" attrs="{'invisible': [('th_company_file_name', '=', 'Chưa có file')]}"/>
-                <button name="th_action_download_single_self_file" type="object" icon="fa-upload"
+                <button name="th_action_download_self_contracts" type="object" icon="fa-upload"
                         title="Tải tệp CTV nộp" class="text-primary" attrs="{'invisible': [('th_self_file_name', '=', 'Chưa nộp')]}"/>
-                <button name="th_action_download_single_final_file" type="object" icon="fa-check-circle"
+                <button name="th_action_download_final_contracts" type="object" icon="fa-check-circle"
                         title="Tải tệp hoàn tất 2 chữ ký" class="text-success" attrs="{'invisible': [('th_final_file_name', '=', 'Chưa có')]}"/>
                 <button name="action_open_contract_form" type="object" icon="fa-history"
                         title="Xem lịch sử thao tác và chi tiết" class="text-muted"/>

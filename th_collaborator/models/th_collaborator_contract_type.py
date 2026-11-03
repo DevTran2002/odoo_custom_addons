@@ -5,12 +5,13 @@ from odoo import fields, models
 
 
 class ThCollaboratorContractType(models.Model):
+    """Quản lý danh mục loại hợp đồng áp dụng cho Cộng tác viên."""
     _name = 'th.collaborator.contract.type'
     _description = 'Loại hợp đồng CTV'
     _order = 'sequence, name'
 
     def th_default_color(self):
-        """Gán màu ngẫu nhiên để các tag dễ phân biệt."""
+        """Gán màu ngẫu nhiên để các nhãn phân loại dễ phân biệt trên giao diện."""
         return randint(1, 11)
 
     name = fields.Char(string='Tên loại hợp đồng', translate=True)
