@@ -90,6 +90,7 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
         self.ensure_one()
         self.write({'th_contract_ids': [Command.clear()]})
         return {
+            'name': _('Thao tác hợp đồng hàng loạt'),
             'type': 'ir.actions.act_window',
             'res_model': self._name,
             'res_id': self.id,
@@ -151,6 +152,21 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                     lambda c: c.th_collaborator_id.th_phone_normalized == normalized)
                 if len(matched_contracts) == 1:
                     return matched_contracts[0]
+
+        # 3. Đối chiếu theo Số thứ tự CTV nếu tên file theo quy ước [stt].AUM-HĐDVTT.[Tên CTV]
+        first_token = tokens[0] if tokens else ''
+        if first_token.isdigit():
+            stt_num = int(first_token)
+            matched_contracts = target_contracts.filtered(
+                lambda c: c.th_collaborator_id.th_sequence == stt_num)
+            if len(matched_contracts) == 1:
+                return matched_contracts[0]
+
+        # 4. Đối chiếu theo Tên CTV nếu trong tên file có chứa tên CTV
+        for contract in target_contracts:
+            ctv_name = (contract.th_collaborator_id.name or '').strip().lower()
+            if ctv_name and ctv_name in base_name.lower():
+                return contract
 
         return False
 
@@ -287,6 +303,7 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
         })
 
         return {
+            'name': _('Kết quả thao tác hợp đồng'),
             'type': 'ir.actions.act_window',
             'res_model': self._name,
             'res_id': self.id,

@@ -10,7 +10,7 @@
     <menuitem id="th_collaborator_contract_menu" name="Hợp đồng" parent="th_collaborator_root_menu"
               action="th_collaborator_contract_action" sequence="20"/>
 
-    <menuitem id="th_collaborator_upload_wizard_menu" name="Tải hợp đồng hàng loạt" parent="th_collaborator_root_menu"
+    <menuitem id="th_collaborator_upload_wizard_menu" name="Upload hợp đồng" parent="th_collaborator_root_menu"
               action="th_collaborator_upload_wizard_action" sequence="30"
               groups="th_collaborator.th_access_collaborator_user"/>
 

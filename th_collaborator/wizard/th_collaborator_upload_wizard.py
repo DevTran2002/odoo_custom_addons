@@ -234,6 +234,7 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                      len(created_contracts), len(updated_contracts), len(unmatched_errors))
 
         return {
+            'name': _('Kết quả nạp hợp đồng'),
             'type': 'ir.actions.act_window',
             'res_model': self._name,
             'res_id': self.id,

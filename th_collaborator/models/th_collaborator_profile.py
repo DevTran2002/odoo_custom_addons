@@ -17,11 +17,27 @@ class ThCollaboratorProfile(models.Model):
     _name = 'th.collaborator.profile'
     _description = 'Cộng tác viên'
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _order = 'id desc'
+    _order = 'th_sequence, id desc'
 
     def th_default_user_id(self):
         """Mặc định người phụ trách CTV là người tạo bản ghi."""
         return self.env.user
+
+    th_sequence = fields.Integer(
+        string='Số thứ tự CTV', default=0, tracking=True, copy=False)
+    th_stt = fields.Integer(
+        string='Số thứ tự CTV', compute='_compute_th_stt', inverse='_inverse_th_stt', store=True)
+
+    @api.depends('th_sequence')
+    def _compute_th_stt(self):
+        """Đồng bộ giá trị STT từ th_sequence."""
+        for rec in self:
+            rec.th_stt = rec.th_sequence
+
+    def _inverse_th_stt(self):
+        """Cập nhật ngược lại th_sequence khi thay đổi th_stt."""
+        for rec in self:
+            rec.th_sequence = rec.th_stt
 
     name = fields.Char(string='Họ và tên', required=True, tracking=True)
     th_program = fields.Char(string='Chương trình', tracking=True)

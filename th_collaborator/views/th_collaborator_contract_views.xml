@@ -11,6 +11,7 @@
                             confirm="Bạn có chắc chắn muốn gửi email cho các hợp đồng đã chọn không?"/>
                     <button name="action_open_batch_contract_wizard" type="object" string="Tải / Nạp tệp hàng loạt"/>
                 </header>
+                <field name="th_collaborator_sequence" string="STT CTV" optional="show"/>
                 <field name="th_code"/>
                 <field name="name"/>
                 <field name="th_collaborator_id"/>

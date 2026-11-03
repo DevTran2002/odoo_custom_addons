@@ -114,10 +114,10 @@
                     </div>
                 </div>
 
-                <!-- Hiển thị kết quả sau khi nạp tệp -->
-                <group attrs="{'invisible': [('th_is_done', '=', False)]}">
-                    <field name="th_result_note" nolabel="1" readonly="1"/>
-                </group>
+                <!-- Hiển thị kết quả sau khi xử lý thao tác -->
+                <div attrs="{'invisible': [('th_is_done', '=', False)]}" class="py-2">
+                    <field name="th_result_note" nolabel="1" readonly="1" class="d-block w-100" style="white-space: pre-wrap;"/>
+                </div>
 
                 <footer>
                     <button name="th_action_download_zip" type="object" string="Tải file ZIP về máy" class="btn-primary"

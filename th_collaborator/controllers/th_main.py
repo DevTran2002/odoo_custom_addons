@@ -125,10 +125,20 @@ class ThCollaboratorController(http.Controller):
 
         attachment = attachments[0]
         ext = os.path.splitext(attachment.name or '')[1].lower() or '.pdf'
-        folder_code = contract.th_code or 'AUM-HĐDVTT'
         ctv_name = re.sub(r'[\\/:*?"<>|]+', '_', contract.th_collaborator_id.name or 'CTV').strip()
-        idx = int(stt) if str(stt).isdigit() else 1
-        download_filename = f"{idx:02d}.{folder_code} - {ctv_name}{ext}"
+
+        # Xác định số thứ tự CTV từ trường Số thứ tự CTV (th_sequence)
+        stt_val = contract.th_collaborator_id.th_sequence
+        if not stt_val and stt:
+            try:
+                stt_val = int(stt)
+            except (ValueError, TypeError):
+                stt_val = 1
+        if not stt_val:
+            stt_val = 1
+
+        stt_str = f"{stt_val:02d}" if stt_val < 100 else str(stt_val)
+        download_filename = f"{stt_str}.AUM-HĐDVTT.{ctv_name}{ext}"
 
         file_content = attachment.raw
         if not file_content and attachment.store_fname:
@@ -165,6 +175,9 @@ class ThCollaboratorController(http.Controller):
         contracts.check_access_rights('read')
         contracts.check_access_rule('read')
 
+        # Sắp xếp danh sách hợp đồng theo Số thứ tự CTV để các file trong ZIP có thứ tự chuẩn
+        contracts = contracts.sorted(key=lambda c: (c.th_collaborator_id.th_sequence or 999999, c.id))
+
         zip_buffer = io.BytesIO()
         used_filenames = set()
         file_count = 0
@@ -181,8 +194,9 @@ class ThCollaboratorController(http.Controller):
                 if not attachments:
                     continue
 
-                folder_code = contract.th_code or 'AUM-HĐDVTT'
                 ctv_name = re.sub(r'[\\/:*?"<>|]+', '_', contract.th_collaborator_id.name or 'CTV').strip()
+                stt_val = contract.th_collaborator_id.th_sequence or idx
+                stt_str = f"{stt_val:02d}" if stt_val < 100 else str(stt_val)
 
                 for sub_idx, att in enumerate(attachments, start=1):
                     file_content = att.raw
@@ -197,9 +211,9 @@ class ThCollaboratorController(http.Controller):
 
                     ext = os.path.splitext(att.name or '')[1].lower() or '.pdf'
                     if len(attachments) > 1:
-                        entry_name = f"{idx:02d}_{sub_idx:02d}.{folder_code} - {ctv_name}{ext}"
+                        entry_name = f"{stt_str}_{sub_idx:02d}.AUM-HĐDVTT.{ctv_name}{ext}"
                     else:
-                        entry_name = f"{idx:02d}.{folder_code} - {ctv_name}{ext}"
+                        entry_name = f"{stt_str}.AUM-HĐDVTT.{ctv_name}{ext}"
 
                     # Tránh xung đột trùng tên tệp trong file nén ZIP
                     unique_name = entry_name

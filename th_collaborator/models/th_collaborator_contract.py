@@ -39,6 +39,9 @@ class ThCollaboratorContract(models.Model):
     th_collaborator_id = fields.Many2one(
         'th.collaborator.profile', string='Cộng tác viên',
         required=True, index=True, ondelete='restrict', tracking=True)
+    th_collaborator_sequence = fields.Integer(
+        string='Số thứ tự CTV', related='th_collaborator_id.th_sequence',
+        store=True, readonly=True, index=True)
     user_id = fields.Many2one(
         'res.users', string='Người phụ trách', required=True, tracking=True,
         default=lambda self: self._default_user_id())
@@ -931,9 +934,10 @@ class ThCollaboratorContract(models.Model):
         if not attachments:
             raise UserError(_('Hợp đồng "%s" chưa có file để tải về.') % contract.name)
 
+        stt_val = contract.th_collaborator_id.th_sequence or 1
         return {
             'type': 'ir.actions.act_url',
-            'url': f'/th_collaborator/download_file?contract_id={contract.id}&contract_type={contract_type}&stt=1',
+            'url': f'/th_collaborator/download_file?contract_id={contract.id}&contract_type={contract_type}&stt={stt_val}',
             'target': 'self',
         }
 

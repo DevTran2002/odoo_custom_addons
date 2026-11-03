@@ -6,6 +6,7 @@
         <field name="model">th.collaborator.profile</field>
         <field name="arch" type="xml">
             <tree string="Cộng tác viên">
+                <field name="th_sequence" string="STT" optional="show"/>
                 <field name="name"/>
                 <field name="th_program" optional="show"/>
                 <field name="th_phone"/>
@@ -60,6 +61,7 @@
                     </div>
                     <group>
                         <group string="Thông tin liên hệ">
+                            <field name="th_sequence"/>
                             <field name="th_phone" widget="phone" required="1"/>
                             <field name="th_email" widget="email" required="1"/>
                             <field name="user_id" required="1" options="{'no_create': True, 'no_create_edit': True}"/>
