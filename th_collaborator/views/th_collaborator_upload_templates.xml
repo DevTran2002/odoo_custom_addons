@@ -40,22 +40,35 @@
                                 <span class="text-muted">Trạng thái:</span>
                                 <span t-if="contract.state == 'open'" class="badge bg-info text-dark ms-1">Đang thực hiện</span>
                                 <span t-elif="contract.state == 'sent'" class="badge bg-primary ms-1">Gửi mail</span>
-                                <span t-elif="contract.state == 'submitted'" class="badge bg-warning text-dark ms-1">Đã nộp</span>
+                                <span t-elif="contract.state == 'submitted'" class="badge bg-warning text-dark ms-1">Chờ duyệt</span>
+                                <span t-elif="contract.state == 'pending_sign'" class="badge bg-warning text-dark ms-1">Chờ ký</span>
                                 <span t-elif="contract.state == 'valid'" class="badge bg-info ms-1">Đã duyệt hợp lệ</span>
                                 <span t-elif="contract.state == 'close'" class="badge bg-success ms-1">Hoàn tất</span>
-                                <span t-else="" class="badge bg-secondary ms-1">Dự thảo / Chờ ký</span>
+                                <span t-else="" class="badge bg-secondary ms-1">Dự thảo</span>
                             </div>
                         </div>
 
-                        <!-- Tệp mẫu do công ty cung cấp nếu có -->
-                        <t t-set="company_doc" t-value="contract.th_document_ids.filtered(lambda d: d.th_document_type in ('company_raw', 'company_signed'))[:1]"/>
-                        <t t-set="company_att" t-value="company_doc.th_attachment_id if company_doc else (contract.th_company_attachment_ids and contract.th_company_attachment_ids[0])"/>
-                        <div t-if="company_att" class="mt-3 pt-2 border-top">
-                            <span class="text-muted me-2">File mẫu từ công ty:</span>
-                            <a t-attf-href="/web/content/#{company_att.id}?download=true"
-                               class="btn btn-sm btn-outline-primary" target="_blank">
-                                Tải file mẫu (<t t-out="company_att.name"/>)
-                            </a>
+                        <div class="mt-3 pt-2 border-top text-muted small">
+                            Lưu ý: Các file mẫu hợp đồng (bản đã ký số và bản chưa ký số) đã được gửi đính kèm đầy đủ trong email phát hành gửi tới bạn. Vui lòng kiểm tra email để tải tệp mẫu về ký trước khi tải lên tại đây.
+                        </div>
+                    </div>
+
+                    <!-- Chọn hình thức hợp đồng nộp -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Hình thức bản hợp đồng bạn nộp <span class="text-danger">*</span></label>
+                        <div class="form-check mb-2 p-3 bg-light rounded border">
+                            <input class="form-check-input ms-1 me-2" type="radio" name="th_upload_type" id="type_signed" value="signed_template" checked="checked"/>
+                            <label class="form-check-label ps-2" for="type_signed">
+                                <strong>Ký từ mẫu đã có chữ ký số Công ty</strong>
+                                <div class="text-muted small">Bạn đã ký điện tử hoặc ký tay trên file PDF mẫu đã có sẵn chữ ký số của Công ty.</div>
+                            </label>
+                        </div>
+                        <div class="form-check p-3 bg-light rounded border">
+                            <input class="form-check-input ms-1 me-2" type="radio" name="th_upload_type" id="type_raw" value="raw_template"/>
+                            <label class="form-check-label ps-2" for="type_raw">
+                                <strong>Ký từ mẫu chưa có chữ ký số Công ty</strong>
+                                <div class="text-muted small">Bạn đã chèn ảnh chữ ký hoặc scan trên file PDF chưa có chữ ký số Công ty (Công ty sẽ thực hiện ký số sau).</div>
+                            </label>
                         </div>
                     </div>
 

@@ -51,8 +51,8 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
             raise UserError(_('Vui lòng chọn tệp hợp đồng cần tải lên.'))
         if self.th_contract_id.th_is_readonly:
             raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc đã Hết hạn, không thể tải lên thêm tệp.'))
-        if self.th_contract_id.state not in ('draft', 'open', 'sent', 'mail_error'):
-            raise UserError(_('Chỉ được phép tải lên tệp hợp đồng khi đang ở trạng thái Dự thảo, Đang thực hiện, Gửi mail hoặc Gửi mail lỗi.'))
+        if self.th_contract_id.state in ('close', 'cancel'):
+            raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể tải lên thêm tệp.'))
 
         display_name = self.name or self.th_file_name or _('Tài liệu hợp đồng')
         contract = self.th_contract_id

@@ -33,7 +33,7 @@
                 <field name="state" widget="badge"
                        decoration-info="state == 'open'"
                        decoration-primary="state in ('sent', 'valid')"
-                       decoration-warning="state == 'submitted'"
+                       decoration-warning="state in ('submitted', 'pending_sign')"
                        decoration-success="state == 'close'"
                        decoration-danger="state in ('cancel', 'mail_error')"/>
                 <field name="th_last_history_note" string="Lịch sử thao tác" optional="show"/>
@@ -94,7 +94,7 @@
                             <div class="o_kanban_record_bottom">
                                 <div class="oe_kanban_bottom_left">
                                     <field name="state" widget="label_selection"
-                                           options="{'classes': {'draft': 'default', 'open': 'info', 'sent': 'primary', 'submitted': 'warning', 'valid': 'info', 'close': 'success', 'cancel': 'danger', 'mail_error': 'danger'}}"/>
+                                           options="{'classes': {'draft': 'default', 'open': 'info', 'sent': 'primary', 'submitted': 'warning', 'pending_sign': 'warning', 'valid': 'info', 'close': 'success', 'cancel': 'danger', 'mail_error': 'danger'}}"/>
                                 </div>
                                 <div class="oe_kanban_bottom_right">
                                     <field name="user_id" widget="many2one_avatar_user"/>
@@ -112,24 +112,77 @@
         <field name="arch" type="xml">
             <form string="Hợp đồng CTV">
                 <header>
+                    <!-- 1. Upload hợp đồng:
+                         - Nổi bật khi ở draft/open mà chưa có file công ty
+                         - Nút phụ khi ở draft/open đã có file công ty
+                         - Ở submitted: Upload bổ sung (nút phụ)
+                         - Ở pending_sign / valid: Upload bản 2 chữ ký (nổi bật nếu chưa có, nút phụ nếu đã có)
+                         - Ẩn hoàn toàn ở: sent, mail_error, close, cancel
+                    -->
                     <button name="action_open_upload_document_wizard" type="object"
-                            string="Upload hợp đồng" class="btn-primary" icon="fa-upload"
-                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open', 'sent', 'mail_error')), ('th_is_readonly', '=', True)]}"/>
+                            string="Upload hợp đồng" class="oe_highlight" icon="fa-upload"
+                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open')), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '!=', 'Chưa có file')]}"/>
+                    <button name="action_open_upload_document_wizard" type="object"
+                            string="Upload hợp đồng" class="btn-secondary" icon="fa-upload"
+                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open')), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
+                    <button name="action_open_upload_document_wizard" type="object"
+                            string="Upload bổ sung" class="btn-secondary" icon="fa-upload"
+                            attrs="{'invisible': ['|', ('state', '!=', 'submitted'), ('th_is_readonly', '=', True)]}"/>
+                    <button name="action_open_upload_document_wizard" type="object"
+                            string="Upload bản 2 chữ ký" class="oe_highlight" icon="fa-upload"
+                            attrs="{'invisible': ['|', ('state', 'not in', ('pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '!=', 'Chưa có')]}"/>
+                    <button name="action_open_upload_document_wizard" type="object"
+                            string="Upload bản 2 chữ ký" class="btn-secondary" icon="fa-upload"
+                            attrs="{'invisible': ['|', ('state', 'not in', ('pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
+
+                    <!-- 2. Gửi mail hợp đồng: Nút chính ở draft và open khi đã có file -->
                     <button name="th_action_send_contract_mail" type="object" string="Gửi mail hợp đồng" class="oe_highlight"
-                            attrs="{'invisible': ['|', ('state', 'in', ('sent', 'mail_error')), '|', ('th_is_readonly', '=', True), '|', ('th_mail_sent_date', '!=', False), ('th_company_file_name', '=', 'Chưa có file')]}"/>
-                    <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail"
-                            attrs="{'invisible': ['|', ('state', '=', 'mail_error'), '|', ('th_is_readonly', '=', True), '|', ('th_mail_sent_date', '=', False), ('th_company_file_name', '=', 'Chưa có file')]}"
-                            confirm="Hợp đồng này đã được gửi mail trước đó. Bạn có chắc muốn gửi lại?"/>
-                    <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="btn-secondary"
+                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open')), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
+
+                    <!-- 3. Gửi lại mail:
+                         - Ở mail_error: Nút chính nổi bật (oe_highlight) để gửi lại ngay
+                         - Ở sent: Nút phụ (btn-secondary) có xác nhận
+                    -->
+                    <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="oe_highlight"
                             attrs="{'invisible': ['|', ('state', '!=', 'mail_error'), ('th_is_readonly', '=', True)]}"/>
-                    <button name="th_action_send_final_contract_mail" type="object" string="Gửi trả HĐ đủ 2 chữ ký" class="btn-primary"
-                            attrs="{'invisible': ['|', ('state', 'not in', ('valid', 'submitted', 'open', 'sent')), ('th_final_file_name', '=', 'Chưa có')]}"/>
-                    <button name="action_set_cancel" type="object" string="Hủy"
-                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open', 'sent', 'submitted', 'valid', 'mail_error')), ('th_is_readonly', '=', True)]}" class="btn-secondary"/>
-                    <button name="action_set_draft" type="object" string="Khôi phục dự thảo"
-                            attrs="{'invisible': [('state', 'not in', ('cancel', 'mail_error'))]}" class="btn-secondary"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,open,sent,submitted,valid,close" options="{'clickable': '1'}"
-                           attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
+                    <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="btn-secondary"
+                            attrs="{'invisible': ['|', ('state', '!=', 'sent'), ('th_is_readonly', '=', True)]}"
+                            confirm="Hợp đồng này đã được gửi mail trước đó. Bạn có chắc muốn gửi lại?"/>
+
+                    <!-- 4. Xác nhận hoàn tất trực tiếp ở submitted (Mẫu đã có chữ ký số công ty) -->
+                    <button name="action_set_close" type="object" string="Xác nhận hoàn tất" class="oe_highlight"
+                            attrs="{'invisible': ['|', ('state', '!=', 'submitted'), ('th_is_readonly', '=', True)]}"/>
+
+                    <!-- 5. Gửi trả HĐ đủ 2 chữ ký: Nút chính ở pending_sign/valid khi đã có bản 2 chữ ký -->
+                    <button name="th_action_send_final_contract_mail" type="object" string="Gửi trả HĐ đủ 2 chữ ký" class="oe_highlight"
+                            attrs="{'invisible': ['|', ('state', 'not in', ('pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
+
+                    <!-- 6. Hủy: Cho phép hủy ở các trạng thái xử lý -->
+                    <button name="action_set_cancel" type="object" string="Hủy" class="btn-secondary"
+                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open', 'sent', 'submitted', 'pending_sign', 'valid', 'mail_error')), ('th_is_readonly', '=', True)]}"/>
+
+                    <!-- 7. Khôi phục dự thảo:
+                         - Ở cancel: Nút chính
+                         - Ở mail_error: Nút phụ
+                    -->
+                    <button name="action_set_draft" type="object" string="Khôi phục dự thảo" class="oe_highlight"
+                            attrs="{'invisible': [('state', '!=', 'cancel')]}"/>
+                    <button name="action_set_draft" type="object" string="Khôi phục dự thảo" class="btn-secondary"
+                            attrs="{'invisible': [('state', '!=', 'mail_error')]}"/>
+
+                    <field name="th_contract_flow" invisible="1"/>
+
+                    <!-- Thanh trạng thái cho luồng Chờ ký (Mẫu công ty chưa ký số): Chỉ hiển thị Chờ ký, Ẩn Chờ duyệt -->
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,open,sent,pending_sign,valid,close"
+                           options="{'clickable': '1'}"
+                           attrs="{'invisible': ['&amp;', ('state', '!=', 'pending_sign'), ('th_contract_flow', '!=', 'raw_template')], 'readonly': [('th_is_readonly', '=', True)]}"/>
+
+                    <!-- Thanh trạng thái cho luồng Chờ duyệt (Mẫu công ty đã ký số hoặc mặc định): Chỉ hiển thị Chờ duyệt, Ẩn Chờ ký -->
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,open,sent,submitted,valid,close"
+                           options="{'clickable': '1'}"
+                           attrs="{'invisible': ['|', ('state', '=', 'pending_sign'), ('th_contract_flow', '=', 'raw_template')], 'readonly': [('th_is_readonly', '=', True)]}"/>
                 </header>
                 <sheet>
                     <field name="th_is_readonly" invisible="1"/>
@@ -259,7 +312,8 @@
                 <filter name="filter_state_draft" string="Dự thảo" domain="[('state', '=', 'draft')]"/>
                 <filter name="filter_state_open" string="Đang thực hiện" domain="[('state', '=', 'open')]"/>
                 <filter name="filter_state_sent" string="Gửi mail (Đã gửi)" domain="[('state', '=', 'sent')]"/>
-                <filter name="filter_state_submitted" string="Đã nộp" domain="[('state', '=', 'submitted')]"/>
+                <filter name="filter_state_submitted" string="Chờ duyệt" domain="[('state', '=', 'submitted')]"/>
+                <filter name="filter_state_pending_sign" string="Chờ ký" domain="[('state', '=', 'pending_sign')]"/>
                 <filter name="filter_state_valid" string="Đã duyệt hợp lệ" domain="[('state', '=', 'valid')]"/>
                 <filter name="filter_state_close" string="Hoàn tất" domain="[('state', '=', 'close')]"/>
                 <filter name="filter_state_mail_error" string="Gửi mail lỗi" domain="[('state', '=', 'mail_error')]"/>
@@ -270,7 +324,7 @@
                 <filter name="filter_mail_error" string="Lỗi gửi mail" domain="['|', ('state', '=', 'mail_error'), ('th_mail_error', '!=', False)]"/>
                 <separator/>
                 <filter name="filter_valid_confirmed" string="Đã duyệt hợp lệ" domain="[('th_is_valid_confirmed', '=', True)]"/>
-                <filter name="filter_waiting_valid" string="Chờ duyệt hợp lệ" domain="[('th_is_valid_confirmed', '=', False), ('state', '=', 'submitted')]"/>
+                <filter name="filter_waiting_valid" string="Chờ duyệt / Chờ ký" domain="[('th_is_valid_confirmed', '=', False), ('state', 'in', ('submitted', 'pending_sign'))]"/>
                 <filter name="filter_has_final" string="Đã có bản 2 chữ ký" domain="[('th_final_attachment_id', '!=', False)]"/>
                 <separator/>
                 <filter name="filter_uploaded" string="CTV đã nộp file" domain="[('th_self_attachment_ids', '!=', False)]"/>

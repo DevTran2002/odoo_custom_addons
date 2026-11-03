@@ -106,7 +106,8 @@ class ThCollaboratorController(http.Controller):
             return self._render_upload_page(values)
 
         # sudo: Người dùng public nộp file hợp đồng vào đúng bản ghi hợp đồng mục tiêu mà không cần đăng nhập hệ thống nội bộ
-        contract.sudo()._add_self_contracts(files)
+        upload_type = kwargs.get('th_upload_type', 'signed_template')
+        contract.sudo()._add_self_contracts(files, upload_type=upload_type)
 
         values['success'] = _('Xin chào %s, hệ thống đã nhận %s file cho hợp đồng "%s" (Mã: %s). Cảm ơn bạn!') % (
             profile.name, len(files), contract.name, contract.th_code)
