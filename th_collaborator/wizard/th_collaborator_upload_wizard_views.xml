@@ -118,7 +118,5 @@
         <field name="res_model">th.collaborator.upload.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
-        <field name="binding_model_id" ref="model_th_collaborator_contract"/>
-        <field name="binding_view_types">list</field>
     </record>
 </odoo>
