@@ -58,7 +58,7 @@ class ThCollaboratorContract(models.Model):
     th_is_expired = fields.Boolean(
         string='Đã hết hạn', compute='_compute_expiration_status', store=True, index=True, tracking=True)
     th_expiration_status = fields.Selection([
-        ('valid', 'Chưa hết hạn'),
+        ('valid', 'Đang chạy'),
         ('expired', 'Đã hết hạn'),
     ], string='Thời hạn hợp đồng', compute='_compute_expiration_status', store=True, index=True)
     state = fields.Selection([
@@ -111,8 +111,6 @@ class ThCollaboratorContract(models.Model):
 
     th_is_readonly = fields.Boolean(
         string='Khóa chỉnh sửa', compute='_compute_is_readonly')
-    th_last_history_note = fields.Char(
-        string='Lịch sử thao tác', compute='_compute_last_history_note')
 
     _sql_constraints = [
         ('th_code_uniq', 'unique(th_code)', 'Mã hợp đồng đã tồn tại trong hệ thống. Vui lòng chọn mã khác.'),
@@ -213,21 +211,6 @@ class ThCollaboratorContract(models.Model):
                 rec.th_final_file_name = rec.th_final_attachment_id.name or _('Đã có bản hoàn tất')
             else:
                 rec.th_final_file_name = _('Chưa có')
-
-    def _compute_last_history_note(self):
-        """Hiển thị tóm tắt nội dung trao đổi hoặc thao tác gần nhất từ chatter."""
-        for rec in self:
-            last_msg = rec.message_ids.filtered(lambda m: m.subtype_id and not m.subtype_id.internal)[:1]
-            if not last_msg:
-                last_msg = rec.message_ids[:1]
-            if last_msg:
-                author_name = last_msg.author_id.name or _('Hệ thống')
-                body_clean = re.sub(r'<[^>]+>', '', last_msg.body or '').strip()
-                if len(body_clean) > 40:
-                    body_clean = body_clean[:37] + '...'
-                rec.th_last_history_note = f"{author_name}: {body_clean}" if body_clean else f"{author_name}"
-            else:
-                rec.th_last_history_note = _('Chưa có thao tác')
 
     @api.onchange('th_collaborator_id')
     def _onchange_th_collaborator_id(self):
@@ -770,10 +753,35 @@ class ThCollaboratorContract(models.Model):
         if not default_template:
             raise UserError(_('Không tìm thấy mẫu email gửi hợp đồng.'))
 
+        # Tự động lọc và bảo vệ: Bỏ qua các hợp đồng không hợp lệ (đã hoàn tất, đã hủy, đã nộp hoặc đã gửi mail)
+        skipped_records = []
+        processable_records = self.env['th.collaborator.contract']
+
+        for rec in self:
+            if rec.state in ('close', 'cancel'):
+                skipped_records.append((rec, _('Đã hoàn tất hoặc đã hủy')))
+            elif rec.th_is_expired:
+                skipped_records.append((rec, _('Đã hết hạn hiệu lực')))
+            elif rec.state in ('submitted', 'pending_sign', 'valid'):
+                skipped_records.append((rec, _('CTV đã nộp bản ký / đang xử lý duyệt')))
+            elif rec.state == 'sent':
+                skipped_records.append((rec, _('Đã gửi mail trước đó')))
+            else:
+                processable_records |= rec
+
+        if not processable_records:
+            skip_details = '\n'.join([f"- {r.th_code or r.name} ({r.th_collaborator_id.name}): {reason}" for r, reason in skipped_records[:10]])
+            if len(skipped_records) > 10:
+                skip_details += _('\n- ... và %s hợp đồng khác.') % (len(skipped_records) - 10)
+            raise UserError(
+                _('Không có hợp đồng nào phù hợp để gửi mail trong các bản ghi đã chọn.\n\nChi tiết các hợp đồng bị bỏ qua:\n%s')
+                % skip_details
+            )
+
         success_records = self.env['th.collaborator.contract']
         failed_records = []
 
-        for rec in self:
+        for rec in processable_records:
             company_attachments = rec._get_company_mail_attachments()
             error_msg = False
             if not rec.th_email:
@@ -829,8 +837,10 @@ class ThCollaboratorContract(models.Model):
                 failed_records.append((rec, err_detail))
 
         summary_lines = [
-            _('Tổng kết gửi mail: Thành công %s/%s hợp đồng.') % (len(success_records), len(self))
+            _('Tổng kết gửi mail: Thành công %s/%s hợp đồng cần gửi.') % (len(success_records), len(processable_records))
         ]
+        if skipped_records:
+            summary_lines.append(_('Đã bỏ qua %s hợp đồng do đã hoàn tất, đã nộp hoặc đã gửi mail trước đó.') % len(skipped_records))
         if failed_records:
             summary_lines.append(_('\nDanh sách thất bại (%s):') % len(failed_records))
             for contract, reason in failed_records[:10]:
@@ -839,7 +849,7 @@ class ThCollaboratorContract(models.Model):
                 summary_lines.append(_('- ... và %s hợp đồng khác.') % (len(failed_records) - 10))
 
         message = '\n'.join(summary_lines)
-        _logger.info('Batch mail sent: %s success, %s failed', len(success_records), len(failed_records))
+        _logger.info('Batch mail sent: %s success, %s skipped, %s failed', len(success_records), len(skipped_records), len(failed_records))
 
         notify_type = 'success' if not failed_records else ('warning' if success_records else 'danger')
         return {
@@ -849,7 +859,7 @@ class ThCollaboratorContract(models.Model):
                 'title': _('Kết quả gửi email hợp đồng'),
                 'type': notify_type,
                 'message': message,
-                'sticky': bool(failed_records),
+                'sticky': bool(failed_records or skipped_records),
                 'next': {'type': 'ir.actions.act_window_close'},
             },
         }

@@ -24,7 +24,6 @@
                 <field name="th_expiration_status" widget="badge" optional="show"
                        decoration-danger="th_expiration_status == 'expired'"
                        decoration-success="th_expiration_status == 'valid'"/>
-                <!-- 3 cột phân biệt rõ 3 loại tệp hợp đồng -->
                 <field name="th_company_file_name" string="HĐ công ty cung cấp"/>
                 <field name="th_self_file_name" string="HĐ CTV nộp"/>
                 <field name="th_final_file_name" string="HĐ đủ 2 chữ ký"/>
@@ -34,16 +33,12 @@
                        decoration-warning="state in ('submitted', 'pending_sign')"
                        decoration-success="state == 'close'"
                        decoration-danger="state in ('cancel', 'mail_error')"/>
-                <field name="th_last_history_note" string="Lịch sử thao tác" optional="show"/>
-                <!-- Nút thao tác trên từng dòng -->
                 <button name="th_action_download_company_contracts" type="object" icon="fa-file-text-o"
-                        title="Tải tệp công ty cung cấp" attrs="{'invisible': [('th_company_file_name', '=', 'Chưa có file')]}"/>
-                <button name="th_action_download_self_contracts" type="object" icon="fa-upload"
-                        title="Tải tệp CTV nộp" class="text-primary" attrs="{'invisible': [('th_self_file_name', '=', 'Chưa nộp')]}"/>
+                        title="Tải về tệp công ty cung cấp" attrs="{'invisible': [('th_company_file_name', '=', 'Chưa có file')]}"/>
+                <button name="th_action_download_self_contracts" type="object" icon="fa-download"
+                        title="Tải về tệp CTV nộp" class="text-primary" attrs="{'invisible': [('th_self_file_name', '=', 'Chưa nộp')]}"/>
                 <button name="th_action_download_final_contracts" type="object" icon="fa-check-circle"
-                        title="Tải tệp hoàn tất 2 chữ ký" class="text-success" attrs="{'invisible': [('th_final_file_name', '=', 'Chưa có')]}"/>
-                <button name="action_open_contract_form" type="object" icon="fa-history"
-                        title="Xem lịch sử thao tác và chi tiết" class="text-muted"/>
+                        title="Tải về tệp hoàn tất 2 chữ ký" class="text-success" attrs="{'invisible': [('th_final_file_name', '=', 'Chưa có')]}"/>
             </tree></field>
     </record>
     <!-- Kanban View Hợp đồng CTV -->
@@ -110,13 +105,6 @@
         <field name="arch" type="xml">
             <form string="Hợp đồng CTV">
                 <header>
-                    <!-- 1. Upload hợp đồng:
-                         - Nổi bật khi ở draft/open mà chưa có file công ty
-                         - Nút phụ khi ở draft/open đã có file công ty
-                         - Ở submitted: Upload bổ sung (nút phụ)
-                         - Ở submitted / pending_sign / valid: Upload bản 2 chữ ký (nổi bật nếu chưa có, nút phụ nếu đã có)
-                         - Ẩn hoàn toàn ở: sent, mail_error, close, cancel
-                    -->
                     <button name="action_open_upload_document_wizard" type="object"
                             string="Upload hợp đồng" class="oe_highlight" icon="fa-upload"
                             attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open')), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '!=', 'Chưa có file')]}"/>
@@ -133,32 +121,21 @@
                             string="Upload bản 2 chữ ký" class="btn-secondary" icon="fa-upload"
                             attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
 
-                    <!-- 2. Gửi mail hợp đồng: Nút chính ở draft và open khi đã có file -->
                     <button name="th_action_send_contract_mail" type="object" string="Gửi mail hợp đồng" class="oe_highlight"
                             attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open')), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
 
-                    <!-- 3. Gửi lại mail:
-                         - Ở mail_error: Nút chính nổi bật (oe_highlight) để gửi lại ngay
-                         - Ở sent: Nút phụ (btn-secondary) có xác nhận
-                    -->
                     <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="oe_highlight"
                             attrs="{'invisible': ['|', ('state', '!=', 'mail_error'), ('th_is_readonly', '=', True)]}"/>
                     <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="btn-secondary"
                             attrs="{'invisible': ['|', ('state', '!=', 'sent'), ('th_is_readonly', '=', True)]}"
                             confirm="Hợp đồng này đã được gửi mail trước đó. Bạn có chắc muốn gửi lại?"/>
 
-                    <!-- 4. Xác nhận hoàn tất: Chỉ hiển thị khi đã có bản 2 chữ ký -->
                     <button name="action_set_close" type="object" string="Xác nhận hoàn tất" class="btn-secondary"
                             attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
 
-                    <!-- 5. Gửi trả HĐ đủ 2 chữ ký: Nút chính ở submitted/pending_sign/valid khi đã có bản 2 chữ ký -->
                     <button name="th_action_send_final_contract_mail" type="object" string="Gửi trả HĐ đủ 2 chữ ký" class="oe_highlight"
                             attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
 
-                    <!-- 6. Khôi phục dự thảo:
-                         - Ở cancel: Nút chính
-                         - Ở mail_error: Nút phụ
-                    -->
                     <button name="action_set_draft" type="object" string="Khôi phục dự thảo" class="oe_highlight"
                             attrs="{'invisible': [('state', '!=', 'cancel')]}"/>
                     <button name="action_set_draft" type="object" string="Khôi phục dự thảo" class="btn-secondary"
@@ -166,14 +143,12 @@
 
                     <field name="th_contract_flow" invisible="1"/>
 
-                    <!-- Thanh trạng thái cho luồng Chờ ký (Mẫu công ty chưa ký số): Chỉ hiển thị Chờ ký, Ẩn Chờ duyệt -->
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,open,sent,pending_sign,valid,close"
                            options="{'clickable': '1'}"
                            force_save="1"
                            attrs="{'invisible': ['&amp;', ('state', '!=', 'pending_sign'), ('th_contract_flow', '!=', 'raw_template')], 'readonly': [('th_is_readonly', '=', True)]}"/>
 
-                    <!-- Thanh trạng thái cho luồng Chờ duyệt (Mẫu công ty đã ký số hoặc mặc định): Chỉ hiển thị Chờ duyệt, Ẩn Chờ ký -->
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,open,sent,submitted,valid,close"
                            options="{'clickable': '1'}"

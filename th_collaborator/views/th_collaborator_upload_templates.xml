@@ -20,7 +20,6 @@
                       method="post" enctype="multipart/form-data" class="card shadow-sm p-4">
                     <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
 
-                    <!-- Thông tin chi tiết hợp đồng mục tiêu -->
                     <div class="mb-4 p-3 bg-light rounded border">
                         <h5 class="fw-bold text-dark mb-3">Thông tin hợp đồng</h5>
                         <div class="row g-2">
@@ -53,7 +52,6 @@
                         </div>
                     </div>
 
-                    <!-- Chọn hình thức hợp đồng nộp -->
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Hình thức bản hợp đồng bạn nộp <span class="text-danger">*</span></label>
                         <div class="form-check mb-2 p-3 bg-light rounded border">
@@ -72,7 +70,6 @@
                         </div>
                     </div>
 
-                    <!-- Chọn file hợp đồng đã ký -->
                     <div class="mb-4">
                         <label class="form-label fw-semibold" for="th_contract_files">File hợp đồng đã ký <span class="text-danger">*</span></label>
                         <input type="file" class="form-control" id="th_contract_files" name="th_contract_files"

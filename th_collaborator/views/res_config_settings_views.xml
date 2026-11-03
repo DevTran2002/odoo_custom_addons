@@ -11,7 +11,6 @@
                 <div class="app_settings_block" data-string="Cộng tác viên" string="Cộng tác viên" data-key="th_collaborator">
                     <h2>Cấu hình Email Hợp đồng Cộng tác viên</h2>
                     <div class="row mt16 o_settings_container" name="collaborator_mail_settings">
-                        <!-- Mẫu email mời ký hợp đồng -->
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_left_pane"/>
                             <div class="o_setting_right_pane">
@@ -29,7 +28,6 @@
                             </div>
                         </div>
 
-                        <!-- Mẫu email nhắc nhở nộp hợp đồng -->
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_left_pane"/>
                             <div class="o_setting_right_pane">
@@ -47,7 +45,6 @@
                             </div>
                         </div>
 
-                        <!-- Quản lý danh sách mẫu email -->
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_left_pane"/>
                             <div class="o_setting_right_pane">
