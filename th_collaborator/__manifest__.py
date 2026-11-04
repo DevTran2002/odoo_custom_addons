@@ -10,6 +10,7 @@
     'data': [
         'security/th_collaborator_groups.xml',
         'security/ir.model.access.csv',
+        'security/th_collaborator_rules.xml',
         'data/th_collaborator_mail_template_data.xml',
         'data/th_collaborator_cron_data.xml',
         'views/th_collaborator_contract_type_views.xml',

@@ -18,11 +18,15 @@
               action="th_collaborator_mail_sent_action" sequence="40"
               groups="th_collaborator.th_access_collaborator_user"/>
 
-    <menuitem id="th_collaborator_config_menu" name="Cấu hình" parent="th_collaborator_root_menu" sequence="90"/>
+    <menuitem id="th_collaborator_config_menu" name="Cấu hình" parent="th_collaborator_root_menu" sequence="90"
+              groups="th_collaborator.th_role_collaborator_manager"/>
     <menuitem id="th_collaborator_settings_menu" name="Thiết lập" parent="th_collaborator_config_menu"
-              action="th_collaborator_config_settings_action" sequence="5"/>
+              action="th_collaborator_config_settings_action" sequence="5"
+              groups="th_collaborator.th_role_collaborator_admin"/>
     <menuitem id="th_collaborator_mail_template_menu" name="Mẫu email" parent="th_collaborator_config_menu"
-              action="th_collaborator_mail_template_action" sequence="15"/>
+              action="th_collaborator_mail_template_action" sequence="15"
+              groups="th_collaborator.th_role_collaborator_manager"/>
     <menuitem id="th_collaborator_contract_type_menu" name="Loại hợp đồng" parent="th_collaborator_config_menu"
-              action="th_collaborator_contract_type_action" sequence="20"/>
+              action="th_collaborator_contract_type_action" sequence="20"
+              groups="th_collaborator.th_role_collaborator_admin"/>
 </odoo>

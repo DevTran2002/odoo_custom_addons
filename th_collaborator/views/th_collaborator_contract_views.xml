@@ -28,8 +28,8 @@
                 <field name="th_final_file_name" string="HĐ đủ 2 chữ ký"/>
                 <field name="th_reminder_date" optional="hide"/>
                 <field name="state" widget="badge"
-                       decoration-info="state == 'open'"
-                       decoration-primary="state in ('sent', 'valid')"
+                       decoration-info="state in ('open', 'legal_review')"
+                       decoration-primary="state in ('legal_approved', 'sent', 'valid')"
                        decoration-warning="state in ('submitted', 'pending_sign')"
                        decoration-success="state == 'close'"
                        decoration-danger="state in ('cancel', 'mail_error')"/>
@@ -133,19 +133,31 @@
                             string="Upload bản 2 chữ ký" class="btn-secondary" icon="fa-upload"
                             attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
 
-                    <button name="th_action_send_contract_mail" type="object" string="Gửi mail hợp đồng" class="oe_highlight"
-                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open')), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
+                    <button name="action_submit_legal_review" type="object" string="Gửi kiểm duyệt" class="oe_highlight" icon="fa-paper-plane"
+                            attrs="{'invisible': ['|', ('state', '!=', 'open'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
 
-                    <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="oe_highlight"
+                    <button name="action_legal_approve" type="object" string="Pháp chế duyệt" class="oe_highlight" icon="fa-check"
+                            groups="th_collaborator.th_role_collaborator_legal"
+                            attrs="{'invisible': ['|', ('state', '!=', 'legal_review'), ('th_is_readonly', '=', True)]}"/>
+
+                    <button name="action_legal_reject" type="object" string="Từ chối kiểm duyệt" class="btn-secondary" icon="fa-times"
+                            groups="th_collaborator.th_role_collaborator_legal"
+                            attrs="{'invisible': ['|', ('state', '!=', 'legal_review'), ('th_is_readonly', '=', True)]}"/>
+
+                    <button name="th_action_send_contract_mail" type="object" string="Gửi mail hợp đồng" class="oe_highlight" icon="fa-envelope"
+                            attrs="{'invisible': ['|', ('state', '!=', 'legal_approved'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
+
+                    <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="oe_highlight" icon="fa-envelope"
                             attrs="{'invisible': ['|', ('state', '!=', 'mail_error'), ('th_is_readonly', '=', True)]}"/>
-                    <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="btn-secondary"
+                    <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="btn-secondary" icon="fa-envelope"
                             attrs="{'invisible': ['|', ('state', '!=', 'sent'), ('th_is_readonly', '=', True)]}"
                             confirm="Hợp đồng này đã được gửi mail trước đó. Bạn có chắc muốn gửi lại?"/>
-                    <button name="th_action_send_contract_reminder" type="object" string="Gửi mail nhắc nhở" class="btn-secondary"
+                    <button name="th_action_send_contract_reminder" type="object" string="Gửi mail nhắc nhở" class="btn-secondary" icon="fa-bell"
                             attrs="{'invisible': ['|', '|', ('state', '!=', 'sent'), ('th_is_signed', '=', True), ('th_is_readonly', '=', True)]}"
                             confirm="Bạn có chắc chắn muốn gửi email nhắc nhở hoàn thiện bản ký cho CTV này không?"/>
 
-                    <button name="action_set_close" type="object" string="Xác nhận hoàn tất" class="btn-secondary"
+                    <button name="action_set_close" type="object" string="Quản lý duyệt hoàn tất" class="oe_highlight" icon="fa-check-circle"
+                            groups="th_collaborator.th_role_collaborator_manager"
                             attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
 
                     <button name="th_action_send_final_contract_mail" type="object" string="Gửi trả HĐ đủ 2 chữ ký" class="oe_highlight"
@@ -159,14 +171,12 @@
                     <field name="th_contract_flow" invisible="1"/>
 
                     <field name="state" widget="statusbar"
-                           statusbar_visible="draft,open,sent,pending_sign,valid,close"
-                           options="{'clickable': '1'}"
+                           statusbar_visible="draft,open,legal_review,legal_approved,sent,pending_sign,valid,close"
                            force_save="1"
                            attrs="{'invisible': ['&amp;', ('state', '!=', 'pending_sign'), ('th_contract_flow', '!=', 'raw_template')], 'readonly': [('th_is_readonly', '=', True)]}"/>
 
                     <field name="state" widget="statusbar"
-                           statusbar_visible="draft,open,sent,submitted,valid,close"
-                           options="{'clickable': '1'}"
+                           statusbar_visible="draft,open,legal_review,legal_approved,sent,submitted,valid,close"
                            force_save="1"
                            attrs="{'invisible': ['|', ('state', '=', 'pending_sign'), ('th_contract_flow', '=', 'raw_template')], 'readonly': [('th_is_readonly', '=', True)]}"/>
                 </header>
@@ -291,6 +301,8 @@
                 <field name="th_batch_date"/>
                 <filter name="filter_state_draft" string="Dự thảo" domain="[('state', '=', 'draft')]"/>
                 <filter name="filter_state_open" string="Đang thực hiện" domain="[('state', '=', 'open')]"/>
+                <filter name="filter_state_legal_review" string="Chờ pháp chế duyệt" domain="[('state', '=', 'legal_review')]"/>
+                <filter name="filter_state_legal_approved" string="Pháp chế đã duyệt" domain="[('state', '=', 'legal_approved')]"/>
                 <filter name="filter_state_sent" string="Gửi mail (Đã gửi)" domain="[('state', '=', 'sent')]"/>
                 <filter name="filter_state_submitted" string="Chờ duyệt" domain="[('state', '=', 'submitted')]"/>
                 <filter name="filter_state_pending_sign" string="Chờ ký" domain="[('state', '=', 'pending_sign')]"/>
@@ -347,6 +359,32 @@
         <field name="state">code</field>
         <field name="code">
 records.action_set_cancel()
+        </field>
+    </record>
+
+    <!-- Server Action: Pháp chế duyệt hàng loạt -->
+    <record id="action_th_collaborator_contract_legal_approve_batch" model="ir.actions.server">
+        <field name="name">Pháp chế duyệt hàng loạt</field>
+        <field name="model_id" ref="model_th_collaborator_contract"/>
+        <field name="binding_model_id" ref="model_th_collaborator_contract"/>
+        <field name="binding_view_types">list</field>
+        <field name="groups_id" eval="[(4, ref('th_collaborator.th_role_collaborator_legal'))]"/>
+        <field name="state">code</field>
+        <field name="code">
+action = records.action_legal_approve_batch()
+        </field>
+    </record>
+
+    <!-- Server Action: Quản lý duyệt hoàn tất hàng loạt -->
+    <record id="action_th_collaborator_contract_close_batch" model="ir.actions.server">
+        <field name="name">Quản lý duyệt hoàn tất hàng loạt</field>
+        <field name="model_id" ref="model_th_collaborator_contract"/>
+        <field name="binding_model_id" ref="model_th_collaborator_contract"/>
+        <field name="binding_view_types">list</field>
+        <field name="groups_id" eval="[(4, ref('th_collaborator.th_role_collaborator_manager'))]"/>
+        <field name="state">code</field>
+        <field name="code">
+action = records.action_set_close_batch()
         </field>
     </record>
 </odoo>
