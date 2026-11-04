@@ -204,9 +204,13 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                     lambda d: d.name == att.name or d.th_file_name == att.name
                 )
                 if same_name_docs:
-                    # Ghi đè đúng bản ghi tài liệu cùng tên
-                    main_doc = same_name_docs[0]
-                    main_doc.sudo().write({
+                    # Chỉ thay thế tệp cùng tên có thời gian tải lên gần nhất (tải lên sau cùng)
+                    target_doc = same_name_docs.sorted(
+                        key=lambda d: (d.th_upload_date or fields.Datetime.now(), d.id),
+                        reverse=True
+                    )[0]
+                    old_att = target_doc.th_attachment_id
+                    target_doc.sudo().write({
                         'name': att.name,
                         'th_document_type': 'company_signed',
                         'th_file': att.datas,
@@ -217,9 +221,13 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                         'th_user_id': self.env.user.id,
                         'th_notes': _('Thay thế file qua nạp hàng loạt'),
                     })
-                    # Chỉ dọn dẹp nếu có các bản ghi trùng tên do lần trước tạo thừa
-                    if len(same_name_docs) > 1:
-                        same_name_docs[1:].sudo().unlink()
+                    # Giữ nguyên vẹn các tệp cùng tên khác đã tải lên trước đó, không xóa
+                    if old_att and old_att.id != att.id:
+                        other_using_old = target_contract.th_document_ids.filtered(
+                            lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
+                        )
+                        if not other_using_old:
+                            old_att.sudo().unlink()
                 else:
                     # Nếu không có tệp nào trùng tên:
                     # Nếu hợp đồng chỉ có duy nhất 1 tệp công ty thì thay thế tệp đó

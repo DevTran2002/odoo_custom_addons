@@ -278,10 +278,14 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                         lambda d: d.name == att.name or d.th_file_name == att.name
                     )
                     if same_name_docs:
-                        main_doc = same_name_docs[0]
-                        old_att = main_doc.th_attachment_id
+                        # Chỉ thay thế tệp cùng tên có thời gian tải lên gần nhất (tải lên sau cùng)
+                        target_doc = same_name_docs.sorted(
+                            key=lambda d: (d.th_upload_date or fields.Datetime.now(), d.id),
+                            reverse=True
+                        )[0]
+                        old_att = target_doc.th_attachment_id
                         # sudo: Ghi đè thông tin tài liệu hợp đồng nội bộ
-                        main_doc.sudo().write({
+                        target_doc.sudo().write({
                             'name': att.name,
                             'th_document_type': target_doc_type,
                             'th_file': att.datas,
@@ -292,20 +296,22 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                             'th_user_id': self.env.user.id,
                             'th_notes': _('Thay thế tệp %s qua thao tác hàng loạt') % doc_type_label,
                         })
+                        # Giữ nguyên vẹn toàn bộ các tệp cùng tên khác đã tải lên trước đó, không xóa
                         if old_att and old_att.id != att.id:
-                            # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
-                            old_att.sudo().unlink()
-                        # Chỉ dọn dẹp các bản ghi trùng đúng tên đó do lần trước tạo lặp
-                        if len(same_name_docs) > 1:
-                            same_name_docs[1:].sudo().unlink()
+                            other_using_old = contract.th_document_ids.filtered(
+                                lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
+                            )
+                            if not other_using_old:
+                                # sudo: Dọn dẹp tệp attachment cũ nếu không còn tài liệu nào khác tham chiếu
+                                old_att.sudo().unlink()
                     else:
                         # Nếu không có tệp trùng tên:
                         # Nếu hợp đồng chỉ có duy nhất 1 tệp thuộc phân loại này thì thay thế tệp đó
                         if len(type_docs) == 1:
-                            main_doc = type_docs[0]
-                            old_att = main_doc.th_attachment_id
+                            target_doc = type_docs[0]
+                            old_att = target_doc.th_attachment_id
                             # sudo: Ghi đè thông tin tài liệu hợp đồng nội bộ
-                            main_doc.sudo().write({
+                            target_doc.sudo().write({
                                 'name': att.name,
                                 'th_document_type': target_doc_type,
                                 'th_file': att.datas,
@@ -317,8 +323,12 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                                 'th_notes': _('Thay thế tệp %s qua thao tác hàng loạt') % doc_type_label,
                             })
                             if old_att and old_att.id != att.id:
-                                # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
-                                old_att.sudo().unlink()
+                                other_using_old = contract.th_document_ids.filtered(
+                                    lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
+                                )
+                                if not other_using_old:
+                                    # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
+                                    old_att.sudo().unlink()
                         else:
                             unmatched_errors.append(
                                 _('%s: Hợp đồng "%s" có nhiều tệp %s khác nhau. Không tìm thấy tệp trùng tên để thay thế.') % (
@@ -327,13 +337,15 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                             )
                             continue
 
-                    # Cập nhật th_company_attachment_ids an toàn: giữ nguyên các tệp khác, chỉ thay tệp cùng tên
+                    # Cập nhật th_company_attachment_ids an toàn: thêm attachment mới và chỉ gỡ attachment cũ nếu không còn tài liệu nào dùng
                     if target_doc_type == 'company_signed':
-                        old_same_name_atts = contract.th_company_attachment_ids.filtered(lambda a: a.name == att.name)
                         commands = [Command.link(att.id)]
-                        for old_a in old_same_name_atts:
-                            if old_a.id != att.id:
-                                commands.append(Command.unlink(old_a.id))
+                        if old_att and old_att.id != att.id:
+                            other_using_old = contract.th_document_ids.filtered(
+                                lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
+                            )
+                            if not other_using_old:
+                                commands.append(Command.unlink(old_att.id))
                         contract.write({'th_company_attachment_ids': commands})
 
                     contract.message_post(body=_('Đã thay thế tệp [%s] (%s) qua thao tác hàng loạt.') % (att.name, doc_type_label))
@@ -381,10 +393,14 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                         lambda d: d.name == att.name or d.th_file_name == att.name
                     )
                     if same_name_docs:
-                        main_doc = same_name_docs[0]
-                        old_att = main_doc.th_attachment_id
+                        # Chỉ thay thế tệp cùng tên có thời gian tải lên gần nhất (tải lên sau cùng)
+                        target_doc = same_name_docs.sorted(
+                            key=lambda d: (d.th_upload_date or fields.Datetime.now(), d.id),
+                            reverse=True
+                        )[0]
+                        old_att = target_doc.th_attachment_id
                         # sudo: Ghi đè thông tin tài liệu CTV nộp
-                        main_doc.sudo().write({
+                        target_doc.sudo().write({
                             'name': att.name,
                             'th_document_type': doc_type,
                             'th_file': att.datas,
@@ -395,18 +411,20 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                             'th_user_id': self.env.user.id,
                             'th_notes': _('Thay thế tệp CTV nộp qua thao tác hàng loạt'),
                         })
+                        # Giữ nguyên vẹn các tệp cùng tên khác đã tải lên trước đó, không xóa
                         if old_att and old_att.id != att.id:
-                            # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
-                            old_att.sudo().unlink()
-                        if len(same_name_docs) > 1:
-                            # sudo: Dọn dẹp các bản ghi tài liệu thừa bị nhân bản cùng tên
-                            same_name_docs[1:].sudo().unlink()
+                            other_using_old = contract.th_document_ids.filtered(
+                                lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
+                            )
+                            if not other_using_old:
+                                # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
+                                old_att.sudo().unlink()
                     else:
                         if len(existing_docs) == 1:
-                            main_doc = existing_docs[0]
-                            old_att = main_doc.th_attachment_id
+                            target_doc = existing_docs[0]
+                            old_att = target_doc.th_attachment_id
                             # sudo: Ghi đè thông tin tài liệu CTV nộp
-                            main_doc.sudo().write({
+                            target_doc.sudo().write({
                                 'name': att.name,
                                 'th_document_type': doc_type,
                                 'th_file': att.datas,
@@ -418,8 +436,12 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                                 'th_notes': _('Thay thế tệp CTV nộp qua thao tác hàng loạt'),
                             })
                             if old_att and old_att.id != att.id:
-                                # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
-                                old_att.sudo().unlink()
+                                other_using_old = contract.th_document_ids.filtered(
+                                    lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
+                                )
+                                if not other_using_old:
+                                    # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
+                                    old_att.sudo().unlink()
                         else:
                             unmatched_errors.append(
                                 _('%s: Hợp đồng "%s" có nhiều tệp CTV nộp khác nhau. Không tìm thấy tệp trùng tên để thay thế.') % (
@@ -428,12 +450,14 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                             )
                             continue
 
-                    # Cập nhật Many2many an toàn: giữ nguyên tệp khác, chỉ gỡ tệp cùng tên
-                    old_same_name_atts = contract.th_self_attachment_ids.filtered(lambda a: a.name == att.name)
+                    # Cập nhật Many2many an toàn: giữ nguyên tệp khác, chỉ gỡ tệp cũ nếu không còn tài liệu nào dùng
                     commands = [Command.link(att.id)]
-                    for old_a in old_same_name_atts:
-                        if old_a.id != att.id:
-                            commands.append(Command.unlink(old_a.id))
+                    if old_att and old_att.id != att.id:
+                        other_using_old = contract.th_document_ids.filtered(
+                            lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
+                        )
+                        if not other_using_old:
+                            commands.append(Command.unlink(old_att.id))
                     contract.write({'th_self_attachment_ids': commands})
 
                     update_vals = {'th_last_upload_date': fields.Datetime.now()}
@@ -478,10 +502,14 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
 
                     contract.write({'th_final_attachment_id': att.id})
                     if existing_docs:
-                        main_doc = existing_docs[0]
-                        old_att = main_doc.th_attachment_id
+                        # Chỉ thay thế tệp hoàn tất có thời gian tải lên gần nhất (tải lên sau cùng)
+                        target_doc = existing_docs.sorted(
+                            key=lambda d: (d.th_upload_date or fields.Datetime.now(), d.id),
+                            reverse=True
+                        )[0]
+                        old_att = target_doc.th_attachment_id
                         # sudo: Ghi đè thông tin tài liệu hoàn tất 2 chữ ký
-                        main_doc.sudo().write({
+                        target_doc.sudo().write({
                             'name': att.name,
                             'th_document_type': 'final_signed',
                             'th_file': att.datas,
@@ -493,11 +521,12 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                             'th_notes': _('Thay thế bản HĐ đủ 2 chữ ký qua thao tác hàng loạt'),
                         })
                         if old_att and old_att.id != att.id:
-                            # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
-                            old_att.sudo().unlink()
-                        if len(existing_docs) > 1:
-                            # sudo: Dọn dẹp các bản ghi tài liệu thừa bị nhân bản cùng loại
-                            existing_docs[1:].sudo().unlink()
+                            other_using_old = contract.th_document_ids.filtered(
+                                lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
+                            )
+                            if not other_using_old:
+                                # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
+                                old_att.sudo().unlink()
                     else:
                         # sudo: Tạo bản ghi tài liệu hoàn tất 2 chữ ký
                         self.env['th.collaborator.contract.document'].sudo().create({
