@@ -626,7 +626,7 @@ class ThCollaboratorContract(models.Model):
             file_names.append(f'{base_name}{suffix}{extension}')
         return file_names
 
-    def _add_self_contracts(self, files, upload_type='signed_template'):
+    def _add_self_contracts(self, files, upload_type='signed_template', ctv_notes=None):
         """Lưu trữ tệp hợp đồng do CTV gửi lên qua cổng portal trực tuyến."""
         self.ensure_one()
         Attachment = self.env['ir.attachment']
@@ -639,6 +639,8 @@ class ThCollaboratorContract(models.Model):
         is_raw = bool(upload_type == 'raw_template')
         doc_type = 'ctv_signed' if is_raw else 'ctv_digital_signed'
         notes = _('Bản ký từ mẫu chưa có chữ ký số công ty') if is_raw else _('Bản ký từ mẫu đã có chữ ký số công ty')
+        if ctv_notes:
+            notes = f"{notes} | Ghi chú CTV: {ctv_notes}"
 
         for file_name, (dummy, content) in zip(file_names, files):
             raw_b64 = base64.b64encode(content) if isinstance(content, bytes) else content
@@ -695,6 +697,8 @@ class ThCollaboratorContract(models.Model):
         else:
             msg = _('CTV đã nộp %s file hợp đồng từ mẫu đã có chữ ký số công ty: %s. Trạng thái chuyển sang Chờ duyệt.') % (
                 len(result_attachments), ', '.join(result_attachments.mapped('name')))
+        if ctv_notes:
+            msg += _('<br/><strong>Ghi chú từ CTV:</strong> <em>%s</em>') % ctv_notes
         self.message_post(body=msg, subtype_xmlid='mail.mt_comment')
         _logger.info('Collaborator contract %s: uploaded %s file(s) with state %s', self.id, len(result_attachments), new_state)
         return result_attachments

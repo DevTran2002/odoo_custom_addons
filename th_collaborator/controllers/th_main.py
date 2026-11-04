@@ -98,7 +98,8 @@ class ThCollaboratorController(http.Controller):
 
         # sudo: Người dùng công khai nộp tệp hợp đồng trực tiếp theo token mà không cần đăng nhập nội bộ
         upload_type = kwargs.get('th_upload_type', 'signed_template')
-        contract.sudo()._add_self_contracts(files, upload_type=upload_type)
+        ctv_notes = (kwargs.get('th_notes') or '').strip()
+        contract.sudo()._add_self_contracts(files, upload_type=upload_type, ctv_notes=ctv_notes)
 
         values['success'] = _('Xin chào %s, hệ thống đã nhận %s file cho hợp đồng "%s" (Mã: %s). Cảm ơn bạn!') % (
             profile.name, len(files), contract.name, contract.th_code)
