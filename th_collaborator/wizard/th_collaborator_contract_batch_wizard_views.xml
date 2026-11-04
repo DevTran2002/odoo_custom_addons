@@ -54,15 +54,15 @@
                             <group string="Lựa chọn nghiệp vụ" class="th_batch_settings_table">
                                 <field name="th_contract_type" widget="radio" required="1"/>
                                 <field name="th_action_type" widget="radio" required="1"/>
-                                <field name="th_company_sign_type" widget="radio" string="Chữ ký số"
-                                       attrs="{'invisible': ['|', ('th_contract_type', '!=', 'company'), ('th_action_type', '=', 'download')],
-                                               'required': [('th_contract_type', '=', 'company'), ('th_action_type', '!=', 'download')]}"/>
                             </group>
                         </div>
                         <div class="col-12 col-md-5">
                             <group string="Thống kê tệp">
                                 <field name="th_total_selected" readonly="1"/>
                                 <field name="th_total_has_file" readonly="1"/>
+                                <field name="th_company_sign_type" widget="radio" string="Chữ ký số"
+                                       attrs="{'invisible': ['|', ('th_contract_type', '!=', 'company'), ('th_action_type', '=', 'download')],
+                                               'required': [('th_contract_type', '=', 'company'), ('th_action_type', '!=', 'download')]}"/>
                             </group>
                         </div>
                     </div>
@@ -99,7 +99,7 @@
                         <div class="fw-bold mb-1 text-primary">HƯỚNG DẪN TẢI GÓI TỆP ZIP:</div>
                         <ul class="mb-0 ps-3">
                             <li>Hệ thống sẽ tổng hợp tất cả các tệp tương ứng của các hợp đồng đã chọn và nén vào 1 tệp ZIP duy nhất.</li>
-                            <li>Tên các tệp bên trong ZIP được đánh số và đặt theo cấu trúc chuẩn: <code>[stt].AUM-HĐDVTT.[Tên CTV].pdf</code>.</li>
+                            <li>Tên các tệp bên trong ZIP được đặt theo cấu trúc chuẩn: <code>[Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng].pdf</code>.</li>
                             <li>Các hợp đồng chưa có tệp tương ứng sẽ tự động được bỏ qua.</li>
                         </ul>
                     </div>
@@ -110,7 +110,7 @@
                             <div class="fw-bold mb-1 text-primary">HƯỚNG DẪN NẠP TỆP HÀNG LOẠT:</div>
                             <ul class="mb-0 ps-3">
                                 <li>Hỗ trợ nạp thêm tệp vào các hợp đồng đã chọn (không phân biệt hợp đồng đã có tệp hay chưa).</li>
-                                <li>Tên tệp tải lên bắt buộc phải chứa <strong>Mã hợp đồng</strong> hoặc <strong>Số điện thoại của CTV</strong> hoặc đặt theo định dạng chuẩn <code>[stt].AUM-HĐDVTT.[Tên CTV].pdf</code>.</li>
+                                <li>Tên tệp tải lên nên đặt theo cấu trúc chuẩn: <code>[Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng].pdf</code> (hoặc chứa Mã hợp đồng / Số điện thoại CTV).</li>
                             </ul>
                         </div>
                     </div>
@@ -121,8 +121,8 @@
                             <div class="fw-bold mb-1 text-danger">LƯU Ý THAY THẾ TỆP HÀNG LOẠT:</div>
                             <ul class="mb-0 ps-3">
                                 <li>Chỉ áp dụng để thay thế cho các hợp đồng <strong>đã có tệp tương ứng</strong> trong hệ thống.</li>
-                                <li>Hệ thống sẽ <strong>ghi đè trực tiếp</strong> lên tệp có cùng tên. Các tệp khác tên trong hợp đồng sẽ được giữ nguyên vẹn.</li>
-                                <li>Tên tệp tải lên bắt buộc phải chứa <strong>Mã hợp đồng</strong> hoặc <strong>Số điện thoại của CTV</strong> hoặc đặt theo định dạng chuẩn <code>[stt].AUM-HĐDVTT.[Tên CTV].pdf</code>.</li>
+                                <li>Hệ thống sẽ <strong>ghi đè trực tiếp</strong> lên tệp có cùng tên mới nhất. Các tệp khác tên trong hợp đồng sẽ được giữ nguyên vẹn.</li>
+                                <li>Tên tệp tải lên nên đặt theo cấu trúc chuẩn: <code>[Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng].pdf</code> (hoặc chứa Mã hợp đồng / Số điện thoại CTV).</li>
                             </ul>
                         </div>
                     </div>

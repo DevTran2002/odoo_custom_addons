@@ -54,21 +54,46 @@ class ThCollaboratorUploadWizard(models.TransientModel):
         return res
 
     def _extract_phone_and_code(self, file_name):
-        """Bóc tách số điện thoại, mã hợp đồng và tên hợp đồng từ tên tệp tin tải lên."""
+        """Bóc tách số điện thoại, mã hợp đồng và tên hợp đồng từ tên tệp tin tải lên theo quy chuẩn [Mã HĐ] - [SĐT] - [Tên CTV] - [Loại HĐ]."""
         Profile = self.env['th.collaborator.profile']
-        base_name = os.path.splitext(os.path.basename(file_name))[0]
-        tokens = [token.strip() for token in re.split(r'[_\-\s]', base_name) if token.strip()]
+        base_name = os.path.splitext(os.path.basename(file_name))[0].strip()
 
+        # 1. Ưu tiên bóc tách theo quy chuẩn mới: [Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng]
+        hyphen_parts = [p.strip() for p in re.split(r'\s+-\s+', base_name) if p.strip()]
+        if len(hyphen_parts) >= 2:
+            # Trường hợp 1a: [Mã HĐ] - [SĐT] - [Tên CTV] - [Loại HĐ]
+            p1_phone = Profile._normalize_phone(hyphen_parts[1])
+            if len(p1_phone) >= 9:
+                code = hyphen_parts[0]
+                custom_name = ' - '.join(hyphen_parts[2:]) if len(hyphen_parts) > 2 else False
+                return p1_phone, code, custom_name
+
+            # Trường hợp 1b: [SĐT] - [Mã HĐ] - ...
+            p0_phone = Profile._normalize_phone(hyphen_parts[0])
+            if len(p0_phone) >= 9:
+                code = hyphen_parts[1]
+                custom_name = ' - '.join(hyphen_parts[2:]) if len(hyphen_parts) > 2 else False
+                return p0_phone, code, custom_name
+
+        # 2. Bóc tách dự phòng theo các ký tự phân cách gạch dưới, khoảng trắng
+        tokens = [token.strip() for token in re.split(r'[_\-\s]', base_name) if token.strip()]
         if not tokens:
             return False, False, False
 
-        phone = Profile._normalize_phone(tokens[0])
-        if len(phone) < 9:
-            return False, False, False
+        phone0 = Profile._normalize_phone(tokens[0])
+        if len(phone0) >= 9:
+            code = tokens[1] if len(tokens) > 1 else False
+            custom_name = ' '.join(tokens[2:]) if len(tokens) > 2 else False
+            return phone0, code, custom_name
 
-        code = tokens[1] if len(tokens) > 1 else False
-        custom_name = ' '.join(tokens[2:]) if len(tokens) > 2 else False
-        return phone, code, custom_name
+        if len(tokens) >= 2:
+            phone1 = Profile._normalize_phone(tokens[1])
+            if len(phone1) >= 9:
+                code = tokens[0]
+                custom_name = ' '.join(tokens[2:]) if len(tokens) > 2 else False
+                return phone1, code, custom_name
+
+        return False, False, False
 
     def th_action_import_contracts(self):
         """Thực hiện xử lý nạp hàng loạt tệp hợp đồng theo chế độ bổ sung mới hoặc thay thế."""

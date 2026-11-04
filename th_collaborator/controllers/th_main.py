@@ -125,20 +125,14 @@ class ThCollaboratorController(http.Controller):
 
         attachment = attachments[0]
         ext = os.path.splitext(attachment.name or '')[1].lower() or '.pdf'
-        ctv_name = re.sub(r'[\\/:*?"<>|]+', '_', contract.th_collaborator_id.name or 'CTV').strip()
+        
+        # Đặt tên tệp theo quy chuẩn thống nhất: [Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng]
+        code = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_code or f"HD{contract.id}").strip()).strip()
+        phone = re.sub(r'[\\/:*?"<>|\s]+', '', str(contract.th_phone or contract.th_collaborator_id.th_phone or 'SDT')).strip()
+        ctv_name = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_collaborator_id.name or 'CTV').strip()).strip()
+        type_name = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_contract_type_ids[0].name if contract.th_contract_type_ids else 'HD').strip()).strip()
 
-        # Xác định số thứ tự CTV từ trường Số thứ tự CTV (th_sequence)
-        stt_val = contract.th_collaborator_id.th_sequence
-        if not stt_val and stt:
-            try:
-                stt_val = int(stt)
-            except (ValueError, TypeError):
-                stt_val = 1
-        if not stt_val:
-            stt_val = 1
-
-        stt_str = f"{stt_val:02d}" if stt_val < 100 else str(stt_val)
-        download_filename = f"{stt_str}.AUM-HĐDVTT.{ctv_name}{ext}"
+        download_filename = f"{code} - {phone} - {ctv_name} - {type_name}{ext}"
 
         file_content = attachment.raw
         if not file_content and attachment.store_fname:
@@ -201,9 +195,11 @@ class ThCollaboratorController(http.Controller):
                 if not attachments:
                     continue
 
-                ctv_name = re.sub(r'[\\/:*?"<>|]+', '_', contract.th_collaborator_id.name or 'CTV').strip()
-                stt_val = contract.th_collaborator_id.th_sequence or idx
-                stt_str = f"{stt_val:02d}" if stt_val < 100 else str(stt_val)
+                # Đặt tên tệp theo quy chuẩn thống nhất: [Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng]
+                code = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_code or f"HD{contract.id}").strip()).strip()
+                phone = re.sub(r'[\\/:*?"<>|\s]+', '', str(contract.th_phone or contract.th_collaborator_id.th_phone or 'SDT')).strip()
+                ctv_name = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_collaborator_id.name or 'CTV').strip()).strip()
+                type_name = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_contract_type_ids[0].name if contract.th_contract_type_ids else 'HD').strip()).strip()
 
                 for sub_idx, att in enumerate(attachments, start=1):
                     file_content = att.raw
@@ -218,9 +214,9 @@ class ThCollaboratorController(http.Controller):
 
                     ext = os.path.splitext(att.name or '')[1].lower() or '.pdf'
                     if len(attachments) > 1:
-                        entry_name = f"{stt_str}_{sub_idx:02d}.AUM-HĐDVTT.{ctv_name}{ext}"
+                        entry_name = f"{code} - {phone} - {ctv_name} - {type_name}_{sub_idx:02d}{ext}"
                     else:
-                        entry_name = f"{stt_str}.AUM-HĐDVTT.{ctv_name}{ext}"
+                        entry_name = f"{code} - {phone} - {ctv_name} - {type_name}{ext}"
 
                     # Tránh xung đột trùng tên tệp trong file nén ZIP
                     unique_name = entry_name

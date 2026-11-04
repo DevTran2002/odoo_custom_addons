@@ -155,13 +155,41 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
         }
 
     def _match_contract_for_file(self, file_name, target_contracts):
-        """Đối chiếu tên tệp với danh sách hợp đồng đã chọn theo Mã hợp đồng hoặc Số điện thoại."""
+        """Đối chiếu tên tệp với danh sách hợp đồng đã chọn theo quy chuẩn [Mã HĐ] - [SĐT] - [Tên CTV] - [Loại HĐ]."""
         base_name = os.path.splitext(os.path.basename(file_name))[0].strip()
-        tokens = [t.strip() for t in re.split(r'[_\\-\\s.]', base_name) if t.strip()]
-
         Profile = self.env['th.collaborator.profile']
 
-        # 1. Ưu tiên đối chiếu chính xác theo Mã hợp đồng (th_code)
+        # 1. Ưu tiên đối chiếu theo cấu trúc chuẩn mới: [Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng]
+        hyphen_parts = [p.strip() for p in re.split(r'\s+-\s+', base_name) if p.strip()]
+        if len(hyphen_parts) >= 2:
+            part0 = hyphen_parts[0].lower()
+            part1_phone = Profile._normalize_phone(hyphen_parts[1])
+            # Trường hợp 1a: [Mã HĐ] - [SĐT] - ...
+            for contract in target_contracts:
+                c_code = (contract.th_code or '').strip().lower()
+                c_phone = contract.th_collaborator_id.th_phone_normalized or ''
+                if c_code and c_code == part0:
+                    if part1_phone and len(part1_phone) >= 9 and c_phone:
+                        if c_phone == part1_phone:
+                            return contract
+                    return contract
+
+            # Trường hợp 1b: [SĐT] - [Mã HĐ] - ... (nếu người dùng đảo vị trí SĐT lên trước)
+            part0_phone = Profile._normalize_phone(hyphen_parts[0])
+            part1_code = hyphen_parts[1].lower()
+            if len(part0_phone) >= 9:
+                for contract in target_contracts:
+                    c_code = (contract.th_code or '').strip().lower()
+                    c_phone = contract.th_collaborator_id.th_phone_normalized or ''
+                    if c_phone and c_phone == part0_phone:
+                        if part1_code and c_code == part1_code:
+                            return contract
+                        return contract
+
+        # 2. Phân tách theo các ký tự phân cách thông thường để đối chiếu dự phòng
+        tokens = [t.strip() for t in re.split(r'[_\\-\\s.]', base_name) if t.strip()]
+
+        # 2.1. Ưu tiên đối chiếu chính xác theo Mã hợp đồng (th_code)
         for contract in target_contracts:
             if contract.th_code:
                 code_lower = contract.th_code.strip().lower()
@@ -171,7 +199,7 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                 if code_lower in base_name.lower() and len(code_lower) >= 3:
                     return contract
 
-        # 2. Đối chiếu theo Số điện thoại của CTV nếu tên file có chứa SĐT
+        # 2.2. Đối chiếu theo Số điện thoại của CTV nếu tên file có chứa SĐT
         for token in tokens:
             normalized = Profile._normalize_phone(token)
             if len(normalized) >= 9:
@@ -180,7 +208,7 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                 if len(matched_contracts) == 1:
                     return matched_contracts[0]
 
-        # 3. Đối chiếu theo Số thứ tự CTV nếu tên file theo quy ước [stt].AUM-HĐDVTT.[Tên CTV]
+        # 2.3. Đối chiếu theo Số thứ tự CTV nếu tên file bắt đầu bằng số thứ tự
         first_token = tokens[0] if tokens else ''
         if first_token.isdigit():
             stt_num = int(first_token)
@@ -189,7 +217,7 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
             if len(matched_contracts) == 1:
                 return matched_contracts[0]
 
-        # 4. Đối chiếu theo Tên CTV nếu trong tên file có chứa tên CTV
+        # 2.4. Đối chiếu theo Tên CTV nếu trong tên file có chứa tên CTV
         for contract in target_contracts:
             ctv_name = (contract.th_collaborator_id.name or '').strip().lower()
             if ctv_name and ctv_name in base_name.lower():
