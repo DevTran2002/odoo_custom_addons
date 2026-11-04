@@ -55,7 +55,7 @@
                     <div class="alert alert-info mt-2 mb-3" role="alert" attrs="{'invisible': [('th_mode', '!=', 'add')]}">
                         <div class="fw-bold mb-1 text-primary">HƯỚNG DẪN BỔ SUNG HỢP ĐỒNG MỚI:</div>
                         <ul class="mb-0 ps-3">
-                            <li>Quy chuẩn đặt tên tệp: <code>[Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng].pdf</code> (ví dụ: <code>HD01 - 0912345678 - Nguyen Van A - HopDongGiangDay.pdf</code>).</li>
+                            <li>Quy chuẩn đặt tên tệp: <code>[Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng].pdf</code> (ví dụ: <code>HD01-0912345678-Nguyen Van A-HopDongGiangDay.pdf</code>).</li>
                             <li>Hệ thống tự động tạo hợp đồng mới ở trạng thái <em>Dự thảo</em> theo Mã HĐ và SĐT bóc tách từ tên file.</li>
                             <li>Mã HĐ không được trùng với các hợp đồng đã tồn tại trong hệ thống.</li>
                         </ul>
@@ -65,7 +65,7 @@
                     <div class="alert alert-warning mt-2 mb-3" role="alert" attrs="{'invisible': [('th_mode', '!=', 'replace')]}">
                         <div class="fw-bold mb-1 text-danger">LƯU Ý BẮT BUỘC KHI THAY THẾ HỢP ĐỒNG CŨ:</div>
                         <ul class="mb-0 ps-3">
-                            <li>Quy chuẩn đặt tên tệp: <code>[Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng].pdf</code> (ví dụ: <code>HD01 - 0912345678 - Nguyen Van A - HopDongGiangDay.pdf</code>).</li>
+                            <li>Quy chuẩn đặt tên tệp: <code>[Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng].pdf</code> (ví dụ: <code>HD01-0912345678-Nguyen Van A-HopDongGiangDay.pdf</code>).</li>
                             <li>Hệ thống tra cứu theo <strong>Mã HĐ</strong> và <strong>SĐT</strong> để tìm đúng hợp đồng cũ, thay thế file công ty có thời gian tải lên gần nhất bằng file mới và lưu lịch sử trong mục Trao đổi.</li>
                             <li>Nếu Mã HĐ trong tên file không khớp với bất kỳ hợp đồng nào đã có của CTV, file đó sẽ không thể thay thế và bị báo lỗi.</li>
                         </ul>

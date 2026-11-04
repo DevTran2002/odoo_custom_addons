@@ -2,37 +2,32 @@
 <odoo>
     <!-- Danh mục phân quyền cho phân hệ Quản lý Cộng tác viên -->
     <record id="th_module_category_collaborator" model="ir.module.category">
-        <field name="name">Cộng tác viên</field>
+        <field name="name">Hợp đồng CTV</field>
         <field name="sequence">50</field>
     </record>
-
     <!-- Nhóm kỹ thuật cơ sở: nơi duy nhất khai báo ACL đọc/ghi model -->
     <record id="th_access_collaborator_user" model="res.groups">
         <field name="name">[Access] CTV - Quyền cơ sở</field>
         <field name="category_id" ref="base.module_category_hidden"/>
     </record>
-
     <!-- Cấp 1: Nhân viên quản lý CTV (Thao tác trong phạm vi được phân công) -->
     <record id="th_role_collaborator_officer" model="res.groups">
         <field name="name">Nhân viên</field>
         <field name="category_id" ref="th_module_category_collaborator"/>
         <field name="implied_ids" eval="[(6, 0, [ref('th_access_collaborator_user')])]"/>
     </record>
-
     <!-- Cấp 2: Nhân viên pháp chế (Xem toàn bộ, kiểm duyệt hợp đồng trước khi gửi mail) -->
     <record id="th_role_collaborator_legal" model="res.groups">
         <field name="name">Nhân viên pháp chế</field>
         <field name="category_id" ref="th_module_category_collaborator"/>
         <field name="implied_ids" eval="[(6, 0, [ref('th_role_collaborator_officer')])]"/>
     </record>
-
     <!-- Cấp 3: Quản lý (Xem toàn bộ, cấu hình mẫu email, duyệt hoàn tất hợp đồng đủ 2 chữ ký) -->
     <record id="th_role_collaborator_manager" model="res.groups">
         <field name="name">Quản lý</field>
         <field name="category_id" ref="th_module_category_collaborator"/>
         <field name="implied_ids" eval="[(6, 0, [ref('th_role_collaborator_legal')])]"/>
     </record>
-
     <!-- Cấp 4: Quản trị viên (Toàn quyền hệ thống, phân quyền người dùng và cấu hình) -->
     <record id="th_role_collaborator_admin" model="res.groups">
         <field name="name">Quản trị viên</field>

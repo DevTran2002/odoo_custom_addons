@@ -50,6 +50,8 @@ class ThCollaboratorContract(models.Model):
         string='Số điện thoại', related='th_collaborator_id.th_phone', store=True, readonly=True)
     th_email = fields.Char(
         string='Email', related='th_collaborator_id.th_email', store=True, readonly=True)
+    th_email_cc = fields.Char(
+        string='Email CC', related='th_collaborator_id.th_email_cc', store=True, readonly=True)
     th_batch_date = fields.Date(
         string='Ngày đẩy hợp đồng', required=True, default=fields.Date.context_today, index=True, tracking=True)
     th_contract_type_ids = fields.Many2many(
@@ -734,6 +736,18 @@ class ThCollaboratorContract(models.Model):
             attachments = self.th_company_attachment_ids
         return attachments
 
+    def _get_contract_mail_cc(self, include_officer=False):
+        """Lấy danh sách địa chỉ email CC từ hồ sơ CTV (kèm email người phụ trách nếu cần)."""
+        self.ensure_one()
+        cc_list = []
+        if self.th_collaborator_id.th_email_cc:
+            raw_ccs = [e.strip() for e in self.th_collaborator_id.th_email_cc.replace(';', ',').split(',') if e.strip()]
+            cc_list.extend(raw_ccs)
+        if include_officer and self.user_id.email:
+            if self.user_id.email not in cc_list:
+                cc_list.append(self.user_id.email)
+        return ', '.join(cc_list) if cc_list else False
+
     def th_action_send_contract_mail(self):
         """Phát hành email mời ký hợp đồng đến địa chỉ email của CTV."""
         self.ensure_one()
@@ -772,11 +786,15 @@ class ThCollaboratorContract(models.Model):
             }
 
         try:
-            mail_id = default_template.send_mail(self.id, force_send=True, email_values={
+            email_values = {
                 'email_from': self.user_id.email_formatted,
                 'reply_to': self.user_id.email_formatted,
                 'attachment_ids': company_attachments.ids,
-            })
+            }
+            email_cc = self._get_contract_mail_cc()
+            if email_cc:
+                email_values['email_cc'] = email_cc
+            mail_id = default_template.send_mail(self.id, force_send=True, email_values=email_values)
             mail = self.env['mail.mail'].browse(mail_id)
             if mail.exists() and mail.state == 'exception':
                 err_detail = mail.failure_reason or _('Máy chủ gửi mail (SMTP) báo lỗi khi gửi thư.')
@@ -896,11 +914,15 @@ class ThCollaboratorContract(models.Model):
                 continue
 
             try:
-                mail_id = default_template.send_mail(rec.id, force_send=True, email_values={
+                email_values = {
                     'email_from': rec.user_id.email_formatted,
                     'reply_to': rec.user_id.email_formatted,
                     'attachment_ids': company_attachments.ids,
-                })
+                }
+                email_cc = rec._get_contract_mail_cc()
+                if email_cc:
+                    email_values['email_cc'] = email_cc
+                mail_id = default_template.send_mail(rec.id, force_send=True, email_values=email_values)
                 mail = self.env['mail.mail'].browse(mail_id)
                 if mail.exists() and mail.state == 'exception':
                     err_detail = mail.failure_reason or _('Máy chủ gửi mail (SMTP) báo lỗi khi gửi thư.')
@@ -987,6 +1009,9 @@ class ThCollaboratorContract(models.Model):
             'email_to': self.th_email,
             'attachment_ids': [Command.link(self.th_final_attachment_id.id)],
         }
+        email_cc = self._get_contract_mail_cc()
+        if email_cc:
+            mail_values['email_cc'] = email_cc
         mail = self.env['mail.mail'].sudo().create(mail_values)
         mail.send()
         self.write({'state': 'close'})
@@ -1135,7 +1160,7 @@ class ThCollaboratorContract(models.Model):
                 'email_from': self.user_id.email_formatted or self.env.company.email,
                 'reply_to': self.user_id.email_formatted or self.env.company.email,
                 'email_to': self.th_email,
-                'email_cc': self.user_id.email if self.user_id.email else False,
+                'email_cc': self._get_contract_mail_cc(include_officer=True),
                 'attachment_ids': company_attachments.ids,
             }
             reminder_template.send_mail(self.id, force_send=True, email_values=email_values)
@@ -1209,7 +1234,7 @@ class ThCollaboratorContract(models.Model):
                         'email_from': contract.user_id.email_formatted or self.env.company.email,
                         'reply_to': contract.user_id.email_formatted or self.env.company.email,
                         'email_to': contract.th_email,
-                        'email_cc': contract.user_id.email if contract.user_id.email else False,
+                        'email_cc': contract._get_contract_mail_cc(include_officer=True),
                         'attachment_ids': company_attachments.ids,
                     }
                     reminder_template.send_mail(contract.id, force_send=True, email_values=email_values)

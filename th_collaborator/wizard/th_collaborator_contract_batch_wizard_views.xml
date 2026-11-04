@@ -99,7 +99,7 @@
                         <div class="fw-bold mb-1 text-primary">HƯỚNG DẪN TẢI GÓI TỆP ZIP:</div>
                         <ul class="mb-0 ps-3">
                             <li>Hệ thống sẽ tổng hợp tất cả các tệp tương ứng của các hợp đồng đã chọn và nén vào 1 tệp ZIP duy nhất.</li>
-                            <li>Tên các tệp bên trong ZIP được đặt theo cấu trúc chuẩn: <code>[Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng].pdf</code>.</li>
+                            <li>Tên các tệp bên trong ZIP được đặt theo cấu trúc chuẩn: <code>[Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng].pdf</code>.</li>
                             <li>Các hợp đồng chưa có tệp tương ứng sẽ tự động được bỏ qua.</li>
                         </ul>
                     </div>
@@ -110,7 +110,7 @@
                             <div class="fw-bold mb-1 text-primary">HƯỚNG DẪN NẠP TỆP HÀNG LOẠT:</div>
                             <ul class="mb-0 ps-3">
                                 <li>Hỗ trợ nạp thêm tệp vào các hợp đồng đã chọn (không phân biệt hợp đồng đã có tệp hay chưa).</li>
-                                <li>Tên tệp tải lên nên đặt theo cấu trúc chuẩn: <code>[Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng].pdf</code> (hoặc chứa Mã hợp đồng / Số điện thoại CTV).</li>
+                                <li>Tên tệp tải lên nên đặt theo cấu trúc chuẩn: <code>[Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng].pdf</code> (hoặc chứa Mã hợp đồng / Số điện thoại CTV).</li>
                             </ul>
                         </div>
                     </div>
@@ -122,7 +122,7 @@
                             <ul class="mb-0 ps-3">
                                 <li>Chỉ áp dụng để thay thế cho các hợp đồng <strong>đã có tệp tương ứng</strong> trong hệ thống.</li>
                                 <li>Hệ thống sẽ <strong>ghi đè trực tiếp</strong> lên tệp có cùng tên mới nhất. Các tệp khác tên trong hợp đồng sẽ được giữ nguyên vẹn.</li>
-                                <li>Tên tệp tải lên nên đặt theo cấu trúc chuẩn: <code>[Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng].pdf</code> (hoặc chứa Mã hợp đồng / Số điện thoại CTV).</li>
+                                <li>Tên tệp tải lên nên đặt theo cấu trúc chuẩn: <code>[Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng].pdf</code> (hoặc chứa Mã hợp đồng / Số điện thoại CTV).</li>
                             </ul>
                         </div>
                     </div>

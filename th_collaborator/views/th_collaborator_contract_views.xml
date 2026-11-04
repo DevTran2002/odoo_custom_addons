@@ -16,6 +16,7 @@
                 <field name="name"/>
                 <field name="th_collaborator_id"/>
                 <field name="th_phone" optional="show"/>
+                <field name="th_email_cc" optional="hide"/>
                 <field name="th_upload_url" widget="CopyClipboardChar" optional="hide"/>
                 <field name="th_contract_type_ids" widget="many2many_tags" options="{'color_field': 'th_color'}" optional="show"/>
                 <field name="date_start" optional="hide"/>
@@ -233,6 +234,7 @@
                                    attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
                             <field name="th_phone" widget="phone"/>
                             <field name="th_email" widget="email"/>
+                            <field name="th_email_cc" widget="email"/>
                             <field name="th_contract_type_ids" widget="many2many_tags"
                                    options="{'no_open': True, 'no_create': True, 'no_create_edit': True}" required="1"
                                    attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>

@@ -155,12 +155,12 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
         }
 
     def _match_contract_for_file(self, file_name, target_contracts):
-        """Đối chiếu tên tệp với danh sách hợp đồng đã chọn theo quy chuẩn [Mã HĐ] - [SĐT] - [Tên CTV] - [Loại HĐ]."""
+        """Đối chiếu tên tệp với danh sách hợp đồng đã chọn theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV]-[Loại HĐ]."""
         base_name = os.path.splitext(os.path.basename(file_name))[0].strip()
         Profile = self.env['th.collaborator.profile']
 
-        # 1. Ưu tiên đối chiếu theo cấu trúc chuẩn mới: [Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng]
-        hyphen_parts = [p.strip() for p in re.split(r'\s+-\s+', base_name) if p.strip()]
+        # 1. Ưu tiên đối chiếu theo cấu trúc chuẩn: [Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng]
+        hyphen_parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
         if len(hyphen_parts) >= 2:
             part0 = hyphen_parts[0].lower()
             part1_phone = Profile._normalize_phone(hyphen_parts[1])

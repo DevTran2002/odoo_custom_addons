@@ -11,6 +11,7 @@
                 <field name="th_program" optional="show"/>
                 <field name="th_phone"/>
                 <field name="th_email"/>
+                <field name="th_email_cc" optional="hide"/>
                 <field name="th_identification_id" optional="show"/>
                 <field name="th_tax_code" optional="show"/>
                 <field name="th_bank_account_number" optional="show"/>
@@ -64,7 +65,8 @@
                             <field name="th_sequence"/>
                             <field name="th_phone" widget="phone" required="1"/>
                             <field name="th_email" widget="email" required="1"/>
-                            <field name="user_id" required="1" options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="th_email_cc" widget="email" help="Email của người phụ trách để khi gửi hợp đồng sẽ được cc"/>
+                            <field name="user_id" string="Người phụ trách hợp đồng" required="1" options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="th_birthday" required="1"/>
                         </group>
                         <group string="Định danh &amp; Thuế">
@@ -120,6 +122,7 @@
                 <field name="th_program"/>
                 <field name="th_phone"/>
                 <field name="th_email"/>
+                <field name="th_email_cc" optional="hide"/>
                 <field name="th_identification_id"/>
                 <field name="th_tax_code"/>
                 <field name="th_bank_account_number"/>

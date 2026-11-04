@@ -54,12 +54,12 @@ class ThCollaboratorUploadWizard(models.TransientModel):
         return res
 
     def _extract_phone_and_code(self, file_name):
-        """Bóc tách số điện thoại, mã hợp đồng và tên hợp đồng từ tên tệp tin tải lên theo quy chuẩn [Mã HĐ] - [SĐT] - [Tên CTV] - [Loại HĐ]."""
+        """Bóc tách số điện thoại, mã hợp đồng và tên hợp đồng từ tên tệp tin tải lên theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV]-[Loại HĐ]."""
         Profile = self.env['th.collaborator.profile']
         base_name = os.path.splitext(os.path.basename(file_name))[0].strip()
 
-        # 1. Ưu tiên bóc tách theo quy chuẩn mới: [Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng]
-        hyphen_parts = [p.strip() for p in re.split(r'\s+-\s+', base_name) if p.strip()]
+        # 1. Ưu tiên bóc tách theo quy chuẩn: [Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng]
+        hyphen_parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
         if len(hyphen_parts) >= 2:
             # Trường hợp 1a: [Mã HĐ] - [SĐT] - [Tên CTV] - [Loại HĐ]
             p1_phone = Profile._normalize_phone(hyphen_parts[1])

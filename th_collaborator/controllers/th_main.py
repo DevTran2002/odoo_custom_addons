@@ -195,7 +195,7 @@ class ThCollaboratorController(http.Controller):
                 if not attachments:
                     continue
 
-                # Đặt tên tệp theo quy chuẩn thống nhất: [Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng]
+                # Đặt tên tệp theo quy chuẩn thống nhất: [Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng]
                 code = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_code or f"HD{contract.id}").strip()).strip()
                 phone = re.sub(r'[\\/:*?"<>|\s]+', '', str(contract.th_phone or contract.th_collaborator_id.th_phone or 'SDT')).strip()
                 ctv_name = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_collaborator_id.name or 'CTV').strip()).strip()
@@ -214,9 +214,9 @@ class ThCollaboratorController(http.Controller):
 
                     ext = os.path.splitext(att.name or '')[1].lower() or '.pdf'
                     if len(attachments) > 1:
-                        entry_name = f"{code} - {phone} - {ctv_name} - {type_name}_{sub_idx:02d}{ext}"
+                        entry_name = f"{code}-{phone}-{ctv_name}-{type_name}_{sub_idx:02d}{ext}"
                     else:
-                        entry_name = f"{code} - {phone} - {ctv_name} - {type_name}{ext}"
+                        entry_name = f"{code}-{phone}-{ctv_name}-{type_name}{ext}"
 
                     # Tránh xung đột trùng tên tệp trong file nén ZIP
                     unique_name = entry_name

@@ -43,6 +43,7 @@ class ThCollaboratorProfile(models.Model):
     th_program = fields.Char(string='Chương trình', tracking=True)
     th_birthday = fields.Date(string='Ngày sinh', tracking=True)
     th_email = fields.Char(string='Email', required=True, tracking=True)
+    th_email_cc = fields.Char(string='Email CC', tracking=True)
     th_phone = fields.Char(string='Số điện thoại', required=True, tracking=True)
     th_phone_normalized = fields.Char(
         string='SĐT chuẩn hoá', compute='th_compute_phone_normalized', store=True, index=True)
