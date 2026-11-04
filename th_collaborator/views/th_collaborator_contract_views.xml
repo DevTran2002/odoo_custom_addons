@@ -28,8 +28,8 @@
                 <field name="th_final_file_name" string="HĐ đủ 2 chữ ký"/>
                 <field name="th_reminder_date" optional="hide"/>
                 <field name="state" widget="badge"
-                       decoration-info="state in ('open', 'legal_review')"
-                       decoration-primary="state in ('legal_approved', 'sent', 'valid')"
+                       decoration-info="state == 'legal_review'"
+                       decoration-primary="state in ('approved', 'sent')"
                        decoration-warning="state in ('submitted', 'pending_sign')"
                        decoration-success="state == 'close'"
                        decoration-danger="state in ('cancel', 'mail_error')"/>
@@ -97,7 +97,7 @@
                                 <div class="o_kanban_record_bottom mt-2">
                                     <div class="oe_kanban_bottom_left">
                                         <field name="state" widget="label_selection"
-                                               options="{'classes': {'draft': 'default', 'open': 'info', 'sent': 'primary', 'submitted': 'warning', 'pending_sign': 'warning', 'valid': 'info', 'close': 'success', 'cancel': 'danger', 'mail_error': 'danger'}}"/>
+                                               options="{'classes': {'draft': 'default', 'legal_review': 'info', 'approved': 'primary', 'sent': 'primary', 'submitted': 'warning', 'pending_sign': 'warning', 'close': 'success', 'cancel': 'danger', 'mail_error': 'danger'}}"/>
                                     </div>
                                     <div class="oe_kanban_bottom_right">
                                         <field name="user_id" widget="many2one_avatar_user"/>
@@ -119,22 +119,22 @@
                 <header>
                     <button name="action_open_upload_document_wizard" type="object"
                             string="Upload hợp đồng" class="oe_highlight" icon="fa-upload"
-                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open')), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '!=', 'Chưa có file')]}"/>
+                            attrs="{'invisible': ['|', ('state', '!=', 'draft'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '!=', 'Chưa có file')]}"/>
                     <button name="action_open_upload_document_wizard" type="object"
                             string="Upload hợp đồng" class="btn-secondary" icon="fa-upload"
-                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'open')), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
+                            attrs="{'invisible': ['|', ('state', '!=', 'draft'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
                     <button name="action_open_upload_document_wizard" type="object"
                             string="Upload bổ sung" class="btn-secondary" icon="fa-upload"
                             attrs="{'invisible': ['|', ('state', '!=', 'submitted'), ('th_is_readonly', '=', True)]}"/>
                     <button name="action_open_upload_document_wizard" type="object"
                             string="Upload bản 2 chữ ký" class="oe_highlight" icon="fa-upload"
-                            attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '!=', 'Chưa có')]}"/>
+                            attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '!=', 'Chưa có')]}"/>
                     <button name="action_open_upload_document_wizard" type="object"
                             string="Upload bản 2 chữ ký" class="btn-secondary" icon="fa-upload"
-                            attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
+                            attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
 
-                    <button name="action_submit_legal_review" type="object" string="Gửi kiểm duyệt" class="oe_highlight" icon="fa-paper-plane"
-                            attrs="{'invisible': ['|', ('state', '!=', 'open'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
+                    <button name="action_submit_legal_review" type="object" string="Gửi duyệt" class="oe_highlight" icon="fa-paper-plane"
+                            attrs="{'invisible': ['|', ('state', '!=', 'draft'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
 
                     <button name="action_legal_approve" type="object" string="Pháp chế duyệt" class="oe_highlight" icon="fa-check"
                             groups="th_collaborator.th_role_collaborator_legal"
@@ -145,7 +145,7 @@
                             attrs="{'invisible': ['|', ('state', '!=', 'legal_review'), ('th_is_readonly', '=', True)]}"/>
 
                     <button name="th_action_send_contract_mail" type="object" string="Gửi mail hợp đồng" class="oe_highlight" icon="fa-envelope"
-                            attrs="{'invisible': ['|', ('state', '!=', 'legal_approved'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
+                            attrs="{'invisible': ['|', ('state', '!=', 'approved'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
 
                     <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="oe_highlight" icon="fa-envelope"
                             attrs="{'invisible': ['|', ('state', '!=', 'mail_error'), ('th_is_readonly', '=', True)]}"/>
@@ -158,10 +158,10 @@
 
                     <button name="action_set_close" type="object" string="Quản lý duyệt hoàn tất" class="oe_highlight" icon="fa-check-circle"
                             groups="th_collaborator.th_role_collaborator_manager"
-                            attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
+                            attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign')), '|', ('th_is_readonly', '=', True), ('th_self_file_name', '=', 'Chưa nộp')]}"/>
 
                     <button name="th_action_send_final_contract_mail" type="object" string="Gửi trả HĐ đủ 2 chữ ký" class="oe_highlight"
-                            attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
+                            attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign', 'close')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
 
                     <button name="action_set_draft" type="object" string="Khôi phục dự thảo" class="oe_highlight"
                             attrs="{'invisible': [('state', '!=', 'cancel')]}"/>
@@ -171,12 +171,12 @@
                     <field name="th_contract_flow" invisible="1"/>
 
                     <field name="state" widget="statusbar"
-                           statusbar_visible="draft,open,legal_review,legal_approved,sent,pending_sign,valid,close"
+                           statusbar_visible="draft,legal_review,approved,sent,pending_sign,close"
                            force_save="1"
                            attrs="{'invisible': ['&amp;', ('state', '!=', 'pending_sign'), ('th_contract_flow', '!=', 'raw_template')], 'readonly': [('th_is_readonly', '=', True)]}"/>
 
                     <field name="state" widget="statusbar"
-                           statusbar_visible="draft,open,legal_review,legal_approved,sent,submitted,valid,close"
+                           statusbar_visible="draft,legal_review,approved,sent,submitted,close"
                            force_save="1"
                            attrs="{'invisible': ['|', ('state', '=', 'pending_sign'), ('th_contract_flow', '=', 'raw_template')], 'readonly': [('th_is_readonly', '=', True)]}"/>
                 </header>
@@ -211,8 +211,10 @@
                     </div>
                     <field name="th_mail_failed_count" invisible="1"/>
                     <field name="th_company_file_name" invisible="1"/>
+                    <field name="th_self_file_name" invisible="1"/>
                     <field name="th_final_file_name" invisible="1"/>
                     <field name="th_mail_error" invisible="1"/>
+                    <field name="user_id" invisible="1"/>
                     <div class="oe_title">
                         <label for="th_code" class="oe_edit_only"/>
                         <h2>
@@ -231,8 +233,6 @@
                                    attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
                             <field name="th_phone" widget="phone"/>
                             <field name="th_email" widget="email"/>
-                            <field name="user_id" options="{'no_open': True, 'no_create': True, 'no_create_edit': True}" required="1"
-                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
                             <field name="th_contract_type_ids" widget="many2many_tags"
                                    options="{'no_open': True, 'no_create': True, 'no_create_edit': True}" required="1"
                                    attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
@@ -300,18 +300,16 @@
                 <field name="user_id"/>
                 <field name="th_batch_date"/>
                 <filter name="filter_state_draft" string="Dự thảo" domain="[('state', '=', 'draft')]"/>
-                <filter name="filter_state_open" string="Đang thực hiện" domain="[('state', '=', 'open')]"/>
-                <filter name="filter_state_legal_review" string="Chờ pháp chế duyệt" domain="[('state', '=', 'legal_review')]"/>
-                <filter name="filter_state_legal_approved" string="Pháp chế đã duyệt" domain="[('state', '=', 'legal_approved')]"/>
+                <filter name="filter_state_legal_review" string="Chờ duyệt (Pháp chế)" domain="[('state', '=', 'legal_review')]"/>
+                <filter name="filter_state_approved" string="Đã duyệt" domain="[('state', '=', 'approved')]"/>
                 <filter name="filter_state_sent" string="Gửi mail (Đã gửi)" domain="[('state', '=', 'sent')]"/>
-                <filter name="filter_state_submitted" string="Chờ duyệt" domain="[('state', '=', 'submitted')]"/>
+                <filter name="filter_state_submitted" string="Chờ duyệt (CTV nộp)" domain="[('state', '=', 'submitted')]"/>
                 <filter name="filter_state_pending_sign" string="Chờ ký" domain="[('state', '=', 'pending_sign')]"/>
-                <filter name="filter_state_valid" string="Đã duyệt hợp lệ" domain="[('state', '=', 'valid')]"/>
                 <filter name="filter_state_close" string="Hoàn tất" domain="[('state', '=', 'close')]"/>
                 <filter name="filter_state_mail_error" string="Gửi mail lỗi" domain="[('state', '=', 'mail_error')]"/>
                 <filter name="filter_state_cancel" string="Đã hủy" domain="[('state', '=', 'cancel')]"/>
                 <separator/>
-                <filter name="filter_not_sent" string="Chưa gửi mail" domain="[('state', '=', 'open')]"/>
+                <filter name="filter_not_sent" string="Chưa gửi mail" domain="[('state', 'in', ('draft', 'legal_review', 'approved'))]"/>
                 <filter name="filter_mail_sent" string="Đã gửi mail" domain="[('state', '=', 'sent')]"/>
                 <filter name="filter_mail_error" string="Lỗi gửi mail" domain="['|', ('state', '=', 'mail_error'), ('th_mail_error', '!=', False)]"/>
                 <separator/>
@@ -319,11 +317,11 @@
                 <filter name="filter_has_final" string="Đã có bản 2 chữ ký" domain="[('th_final_attachment_id', '!=', False)]"/>
                 <separator/>
                 <filter name="filter_uploaded" string="CTV đã nộp file" domain="[('th_self_attachment_ids', '!=', False)]"/>
-                <filter name="filter_not_uploaded" string="Chưa nộp file" domain="[('th_self_attachment_ids', '=', False), ('state', 'in', ('open', 'sent'))]"/>
+                <filter name="filter_not_uploaded" string="Chưa nộp file" domain="[('th_self_attachment_ids', '=', False), ('state', '=', 'sent')]"/>
                 <separator/>
                 <filter name="filter_contract_expired" string="Hợp đồng hết hạn" domain="[('th_is_expired', '=', True)]"/>
                 <filter name="filter_contract_not_expired" string="Hợp đồng chưa hết hạn" domain="[('th_is_expired', '=', False)]"/>
-                <filter name="filter_overdue_submission" string="Quá hạn nộp" domain="[('date_end', '&lt;', context_today().strftime('%Y-%m-%d')), ('state', 'in', ('open', 'sent'))]"/>
+                <filter name="filter_overdue_submission" string="Quá hạn nộp" domain="[('date_end', '&lt;', context_today().strftime('%Y-%m-%d')), ('state', '=', 'sent')]"/>
                 <group expand="0" string="Gom nhóm">
                     <filter name="group_collaborator" string="Cộng tác viên" context="{'group_by': 'th_collaborator_id'}"/>
                     <filter name="group_user" string="Người phụ trách" context="{'group_by': 'user_id'}"/>

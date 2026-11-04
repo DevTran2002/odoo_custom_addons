@@ -31,12 +31,12 @@
         <!-- ========================================== -->
         <!-- QUY TẮC BẢN GHI: HỢP ĐỒNG CỘNG TÁC VIÊN    -->
         <!-- ========================================== -->
-        <!-- Nhân viên: Chỉ xem và thao tác trên hợp đồng do mình phụ trách -->
+        <!-- Nhân viên: Chỉ xem và thao tác trên hợp đồng của CTV do mình phụ trách -->
         <record id="th_collaborator_contract_officer_rule" model="ir.rule">
-            <field name="name">Hợp đồng: Nhân viên chỉ xem hợp đồng phụ trách</field>
+            <field name="name">Hợp đồng: Nhân viên chỉ xem hợp đồng của CTV phụ trách</field>
             <field name="model_id" ref="model_th_collaborator_contract"/>
             <field name="groups" eval="[(4, ref('th_role_collaborator_officer'))]"/>
-            <field name="domain_force">['|', ('user_id', '=', user.id), ('user_id', '=', False)]</field>
+            <field name="domain_force">['|', ('th_collaborator_id.user_id', '=', user.id), ('th_collaborator_id.user_id', '=', False)]</field>
             <field name="perm_read" eval="1"/>
             <field name="perm_write" eval="1"/>
             <field name="perm_create" eval="1"/>
@@ -58,12 +58,12 @@
         <!-- ========================================== -->
         <!-- QUY TẮC BẢN GHI: TỆP ĐÍNH KÈM HỢP ĐỒNG     -->
         <!-- ========================================== -->
-        <!-- Nhân viên: Chỉ xem tệp thuộc hợp đồng mình phụ trách -->
+        <!-- Nhân viên: Chỉ xem tệp thuộc hợp đồng của CTV mình phụ trách -->
         <record id="th_collaborator_contract_document_officer_rule" model="ir.rule">
-            <field name="name">Tệp hợp đồng: Nhân viên chỉ xem tệp của mình</field>
+            <field name="name">Tệp hợp đồng: Nhân viên chỉ xem tệp của CTV phụ trách</field>
             <field name="model_id" ref="model_th_collaborator_contract_document"/>
             <field name="groups" eval="[(4, ref('th_role_collaborator_officer'))]"/>
-            <field name="domain_force">['|', ('th_contract_id.user_id', '=', user.id), ('th_contract_id.user_id', '=', False)]</field>
+            <field name="domain_force">['|', ('th_contract_id.th_collaborator_id.user_id', '=', user.id), ('th_contract_id.th_collaborator_id.user_id', '=', False)]</field>
             <field name="perm_read" eval="1"/>
             <field name="perm_write" eval="1"/>
             <field name="perm_create" eval="1"/>
@@ -85,12 +85,12 @@
         <!-- ========================================== -->
         <!-- QUY TẮC BẢN GHI: LỊCH SỬ MAIL ĐÃ GỬI       -->
         <!-- ========================================== -->
-        <!-- Nhân viên: Chỉ xem mail thuộc hợp đồng mình phụ trách -->
+        <!-- Nhân viên: Chỉ xem mail thuộc hợp đồng của CTV mình phụ trách -->
         <record id="th_collaborator_mail_sent_officer_rule" model="ir.rule">
-            <field name="name">Mail đã gửi: Nhân viên chỉ xem mail mình gửi</field>
+            <field name="name">Mail đã gửi: Nhân viên chỉ xem mail của CTV phụ trách</field>
             <field name="model_id" ref="model_th_collaborator_mail_sent"/>
             <field name="groups" eval="[(4, ref('th_role_collaborator_officer'))]"/>
-            <field name="domain_force">['|', ('th_contract_id.user_id', '=', user.id), ('th_contract_id.user_id', '=', False)]</field>
+            <field name="domain_force">['|', ('th_contract_id.th_collaborator_id.user_id', '=', user.id), ('th_contract_id.th_collaborator_id.user_id', '=', False)]</field>
             <field name="perm_read" eval="1"/>
             <field name="perm_write" eval="0"/>
             <field name="perm_create" eval="0"/>

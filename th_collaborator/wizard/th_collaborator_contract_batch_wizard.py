@@ -401,7 +401,7 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                     })
                     contract.write({'th_self_attachment_ids': [Command.link(att.id)]})
                     update_vals = {'th_last_upload_date': fields.Datetime.now()}
-                    if contract.state in ('draft', 'open', 'sent'):
+                    if contract.state in ('draft', 'legal_review', 'approved', 'sent'):
                         update_vals['state'] = 'pending_sign' if is_raw else 'submitted'
                     contract.write(update_vals)
                     contract.message_post(body=_('Đã nạp tệp CTV nộp [%s] qua thao tác hàng loạt.') % att.name)
@@ -489,7 +489,7 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                     contract.write({'th_self_attachment_ids': commands})
 
                     update_vals = {'th_last_upload_date': fields.Datetime.now()}
-                    if contract.state in ('draft', 'open', 'sent'):
+                    if contract.state in ('draft', 'legal_review', 'approved', 'sent'):
                         update_vals['state'] = 'pending_sign' if is_raw else 'submitted'
                     contract.write(update_vals)
                     contract.message_post(body=_('Đã thay thế tệp CTV nộp [%s] qua thao tác hàng loạt.') % att.name)

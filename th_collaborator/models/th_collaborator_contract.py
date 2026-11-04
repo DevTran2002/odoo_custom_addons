@@ -43,8 +43,9 @@ class ThCollaboratorContract(models.Model):
         string='Số thứ tự CTV', related='th_collaborator_id.th_sequence',
         store=True, readonly=True, index=True)
     user_id = fields.Many2one(
-        'res.users', string='Người phụ trách', required=True, tracking=True,
-        default=lambda self: self._default_user_id())
+        'res.users', string='Người phụ trách',
+        related='th_collaborator_id.user_id',
+        store=True, readonly=True, index=True)
     th_phone = fields.Char(
         string='Số điện thoại', related='th_collaborator_id.th_phone', store=True, readonly=True)
     th_email = fields.Char(
@@ -66,13 +67,11 @@ class ThCollaboratorContract(models.Model):
     ], string='Thời hạn hợp đồng', compute='_compute_expiration_status', store=True, index=True)
     state = fields.Selection([
         ('draft', 'Dự thảo'),
-        ('open', 'Đang thực hiện'),
-        ('legal_review', 'Chờ pháp chế duyệt'),
-        ('legal_approved', 'Pháp chế đã duyệt'),
+        ('legal_review', 'Chờ duyệt'),
+        ('approved', 'Đã duyệt'),
         ('sent', 'Gửi mail'),
         ('submitted', 'Chờ duyệt'),
         ('pending_sign', 'Chờ ký'),
-        ('valid', 'Đã duyệt hợp lệ'),
         ('close', 'Hoàn tất'),
         ('mail_error', 'Gửi mail lỗi'),
         ('cancel', 'Đã hủy'),
@@ -176,7 +175,7 @@ class ThCollaboratorContract(models.Model):
         for rec in self:
             has_signed_doc = bool(rec.th_document_ids.filtered(lambda d: d.th_document_type in ('ctv_signed', 'ctv_digital_signed', 'final_signed')))
             rec.th_is_signed = bool(
-                rec.th_self_attachment_ids or rec.th_final_attachment_id or has_signed_doc or rec.state in ('submitted', 'pending_sign', 'valid', 'close')
+                rec.th_self_attachment_ids or rec.th_final_attachment_id or has_signed_doc or rec.state in ('submitted', 'pending_sign', 'close')
             )
 
     @api.depends('state', 'th_document_ids.th_document_type')
@@ -279,32 +278,21 @@ class ThCollaboratorContract(models.Model):
                         % rec.name
                     )
 
-                if new_state == 'open':
+                if new_state == 'legal_review':
                     has_company_file = bool(
                         rec.th_company_attachment_ids or
                         rec.th_document_ids.filtered(lambda d: d.th_document_type in ('company_raw', 'company_signed'))
                     )
                     if not has_company_file:
                         raise UserError(
-                            _('Không thể chuyển sang trạng thái "Đang thực hiện": Hợp đồng "%s" chưa có tệp hợp đồng do công ty tải lên.')
+                            _('Không thể chuyển sang trạng thái "Chờ duyệt": Hợp đồng "%s" chưa có tệp hợp đồng do công ty tải lên.')
                             % rec.name
                         )
 
-                elif new_state == 'legal_review':
-                    has_company_file = bool(
-                        rec.th_company_attachment_ids or
-                        rec.th_document_ids.filtered(lambda d: d.th_document_type in ('company_raw', 'company_signed'))
-                    )
-                    if not has_company_file:
+                elif new_state == 'approved':
+                    if current_state not in ('legal_review', 'approved'):
                         raise UserError(
-                            _('Không thể chuyển sang trạng thái "Chờ pháp chế duyệt": Hợp đồng "%s" chưa có tệp hợp đồng do công ty tải lên.')
-                            % rec.name
-                        )
-
-                elif new_state == 'legal_approved':
-                    if current_state not in ('legal_review', 'legal_approved'):
-                        raise UserError(
-                            _('Hợp đồng "%s" phải ở trạng thái "Chờ pháp chế duyệt" trước khi được phê duyệt.')
+                            _('Hợp đồng "%s" phải ở trạng thái "Chờ duyệt" trước khi được phê duyệt.')
                             % rec.name
                         )
                     if not (self.env.user.has_group('th_collaborator.th_role_collaborator_legal') or self.env.is_superuser()):
@@ -313,9 +301,9 @@ class ThCollaboratorContract(models.Model):
                         )
 
                 elif new_state == 'sent':
-                    if current_state not in ('legal_approved', 'sent', 'mail_error'):
+                    if current_state not in ('approved', 'sent', 'mail_error'):
                         raise UserError(
-                            _('Hợp đồng "%s" phải được Bộ phận Pháp chế phê duyệt trước khi chuyển sang trạng thái "Gửi mail".')
+                            _('Hợp đồng "%s" phải được Bộ phận Pháp chế phê duyệt (ở trạng thái "Đã duyệt") trước khi chuyển sang trạng thái "Gửi mail".')
                             % rec.name
                         )
                     has_company_file = bool(
@@ -368,38 +356,6 @@ class ThCollaboratorContract(models.Model):
                             % rec.name
                         )
 
-                elif new_state == 'valid':
-                    if current_state not in ('submitted', 'pending_sign', 'valid'):
-                        raise UserError(
-                            _('Hợp đồng "%s" phải ở trạng thái "Chờ duyệt" hoặc "Chờ ký" trước khi chuyển sang "Đã duyệt hợp lệ".')
-                            % rec.name
-                        )
-                    has_ctv_file = bool(
-                        vals.get('th_self_attachment_ids') or
-                        rec.th_self_attachment_ids or
-                        rec.th_document_ids.filtered(lambda d: d.th_document_type in ('ctv_signed', 'ctv_digital_signed'))
-                    )
-                    if not has_ctv_file:
-                        raise UserError(
-                            _('Không thể chuyển sang trạng thái "Đã duyệt hợp lệ": Hợp đồng "%s" chưa có tệp do CTV nộp.')
-                            % rec.name
-                        )
-                    has_final_file = bool(
-                        vals.get('th_final_attachment_id') or
-                        rec.th_final_attachment_id or
-                        rec.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')
-                    )
-                    is_pre_signed_completed = bool(
-                        rec.th_contract_flow == 'signed_template' and
-                        rec.th_document_ids.filtered(lambda d: d.th_document_type == 'company_signed') and
-                        rec.th_document_ids.filtered(lambda d: d.th_document_type in ('ctv_signed', 'ctv_digital_signed'))
-                    )
-                    if not has_final_file and not is_pre_signed_completed:
-                        raise UserError(
-                            _('Không thể chuyển sang trạng thái "Đã duyệt hợp lệ": Hợp đồng "%s" chưa có bản hợp đồng đầy đủ cả 2 chữ ký. Vui lòng ký số và tải lên tệp hợp đồng hoàn tất đủ 2 chữ ký trước khi duyệt.')
-                            % rec.name
-                        )
-
                 elif new_state == 'close':
                     if not (self.env.user.has_group('th_collaborator.th_role_collaborator_manager') or self.env.is_superuser()):
                         raise UserError(
@@ -408,28 +364,21 @@ class ThCollaboratorContract(models.Model):
                     has_final_file = bool(
                         vals.get('th_final_attachment_id') or
                         rec.th_final_attachment_id or
-                        rec.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')
+                        rec.th_document_ids.filtered(lambda d: d.th_document_type in ('final_signed', 'ctv_signed', 'ctv_digital_signed')) or
+                        rec.th_self_attachment_ids
                     )
                     if not has_final_file:
                         raise UserError(
-                            _('Không thể chuyển sang trạng thái "Hoàn tất": Hợp đồng "%s" chưa có bản hợp đồng đánh dấu đủ 2 chữ ký.')
+                            _('Không thể chuyển sang trạng thái "Hoàn tất": Hợp đồng "%s" chưa có bản hợp đồng do CTV nộp.')
                             % rec.name
                         )
                     if not rec.th_final_attachment_id and not vals.get('th_final_attachment_id'):
-                        final_doc = rec.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')[:1]
+                        final_doc = rec.th_document_ids.filtered(lambda d: d.th_document_type in ('final_signed', 'ctv_signed', 'ctv_digital_signed'))[:1]
                         if final_doc and final_doc.th_attachment_id:
                             vals['th_final_attachment_id'] = final_doc.th_attachment_id.id
 
         old_states = {rec.id: rec.state for rec in self} if 'state' in vals else {}
         res = super().write(vals)
-
-        if vals.get('state') == 'valid':
-            for rec in self:
-                if old_states.get(rec.id) != 'valid':
-                    rec.message_post(
-                        body=_('Nhân sự %s đã kiểm tra và chuyển trạng thái hợp đồng sang Đã duyệt hợp lệ.')
-                        % self.env.user.name
-                    )
 
         if vals.get('state') == 'sent':
             for rec in self:
@@ -462,7 +411,7 @@ class ThCollaboratorContract(models.Model):
         self.write({'state': 'draft'})
 
     def action_submit_legal_review(self):
-        """Chuyển hợp đồng sang trạng thái Chờ pháp chế duyệt."""
+        """Chuyển hợp đồng sang trạng thái Chờ duyệt (pháp chế duyệt)."""
         for rec in self:
             if rec.th_is_readonly:
                 raise UserError(_('Hợp đồng "%s" đã khóa, không thể gửi kiểm duyệt.') % rec.name)
@@ -476,89 +425,90 @@ class ThCollaboratorContract(models.Model):
             rec.message_post(body=_('Hồ sơ hợp đồng đã được chuyển sang Bộ phận Pháp chế để kiểm duyệt trước khi gửi email.'))
 
     def action_legal_approve(self):
-        """Pháp chế phê duyệt kiểm duyệt hợp đồng đạt yêu cầu."""
+        """Pháp chế chấp nhận duyệt hợp đồng đạt yêu cầu."""
         if not (self.env.user.has_group('th_collaborator.th_role_collaborator_legal') or self.env.is_superuser()):
             raise UserError(_('Chỉ Nhân viên pháp chế, Quản lý hoặc Quản trị viên mới có quyền kiểm duyệt hợp đồng.'))
         for rec in self:
             if rec.th_is_readonly:
                 raise UserError(_('Hợp đồng "%s" đã khóa, không thể phê duyệt.') % rec.name)
             if rec.state != 'legal_review':
-                raise UserError(_('Hợp đồng "%s" không ở trạng thái "Chờ pháp chế duyệt".') % rec.name)
-            rec.write({'state': 'legal_approved'})
-            rec.message_post(body=_('Bộ phận Pháp chế (%s) đã kiểm duyệt đạt yêu cầu. Hợp đồng sẵn sàng gửi email cho CTV.') % self.env.user.name)
+                raise UserError(_('Hợp đồng "%s" không ở trạng thái "Chờ duyệt".') % rec.name)
+            rec.write({'state': 'approved'})
+            rec.message_post(body=_('Bộ phận Pháp chế (%s) đã chấp nhận duyệt hợp đồng. Hợp đồng sẵn sàng gửi email cho CTV.') % self.env.user.name)
 
     def action_legal_approve_batch(self):
-        """Duyệt hàng loạt hợp đồng đang ở trạng thái Chờ pháp chế duyệt."""
+        """Duyệt hàng loạt hợp đồng đang ở trạng thái Chờ duyệt."""
         if not (self.env.user.has_group('th_collaborator.th_role_collaborator_legal') or self.env.is_superuser()):
             raise UserError(_('Chỉ Nhân viên pháp chế, Quản lý hoặc Quản trị viên mới có quyền kiểm duyệt hợp đồng.'))
         valid_contracts = self.filtered(lambda c: c.state == 'legal_review' and not c.th_is_readonly)
         if not valid_contracts:
-            raise UserError(_('Không có hợp đồng nào ở trạng thái "Chờ pháp chế duyệt" hợp lệ để phê duyệt.'))
+            raise UserError(_('Không có hợp đồng nào ở trạng thái "Chờ duyệt" hợp lệ để phê duyệt.'))
         for rec in valid_contracts:
-            rec.write({'state': 'legal_approved'})
-            rec.message_post(body=_('Bộ phận Pháp chế (%s) đã phê duyệt hàng loạt kiểm duyệt đạt yêu cầu.') % self.env.user.name)
+            rec.write({'state': 'approved'})
+            rec.message_post(body=_('Bộ phận Pháp chế (%s) đã chấp nhận duyệt hàng loạt hợp đồng đạt yêu cầu.') % self.env.user.name)
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': _('Pháp chế duyệt hàng loạt thành công'),
-                'message': _('Đã phê duyệt kiểm duyệt thành công %s hợp đồng.') % len(valid_contracts),
+                'message': _('Đã phê duyệt chấp nhận thành công %s hợp đồng.') % len(valid_contracts),
                 'type': 'success',
                 'sticky': False,
             }
         }
 
     def action_legal_reject(self):
-        """Pháp chế từ chối kiểm duyệt và trả về trạng thái Đang thực hiện để nhân viên chỉnh sửa."""
+        """Pháp chế không chấp nhận và trả về trạng thái Dự thảo để nhân viên chỉnh sửa."""
         if not (self.env.user.has_group('th_collaborator.th_role_collaborator_legal') or self.env.is_superuser()):
             raise UserError(_('Chỉ Nhân viên pháp chế, Quản lý hoặc Quản trị viên mới có quyền từ chối kiểm duyệt.'))
         for rec in self:
             if rec.th_is_readonly:
                 raise UserError(_('Hợp đồng "%s" đã khóa, không thể thao tác.') % rec.name)
             if rec.state != 'legal_review':
-                raise UserError(_('Hợp đồng "%s" không ở trạng thái "Chờ pháp chế duyệt".') % rec.name)
-            rec.write({'state': 'open'})
-            rec.message_post(body=_('Bộ phận Pháp chế (%s) đã từ chối kiểm duyệt và yêu cầu nhân viên phụ trách kiểm tra, cập nhật lại thông tin hợp đồng.') % self.env.user.name)
+                raise UserError(_('Hợp đồng "%s" không ở trạng thái "Chờ duyệt".') % rec.name)
+            rec.write({'state': 'draft'})
+            rec.message_post(body=_('Bộ phận Pháp chế (%s) không chấp nhận duyệt và yêu cầu nhân viên phụ trách kiểm tra, cập nhật lại hợp đồng (trả về Dự thảo).') % self.env.user.name)
 
     def action_set_sent(self):
         """Chuyển hợp đồng sang trạng thái Gửi mail thủ công."""
         self.write({'state': 'sent'})
 
     def action_set_close(self):
-        """Quản lý chuyển hợp đồng sang trạng thái hoàn tất khi đã có đủ bản 2 chữ ký."""
+        """Quản lý chuyển hợp đồng từ Chờ duyệt sang trạng thái hoàn tất."""
         if not (self.env.user.has_group('th_collaborator.th_role_collaborator_manager') or self.env.is_superuser()):
             raise UserError(_('Chỉ Quản lý hoặc Quản trị viên mới có quyền phê duyệt Hoàn tất hợp đồng.'))
         for rec in self:
             has_final_file = bool(
                 rec.th_final_attachment_id or
-                rec.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')
+                rec.th_document_ids.filtered(lambda d: d.th_document_type in ('final_signed', 'ctv_signed', 'ctv_digital_signed')) or
+                rec.th_self_attachment_ids
             )
             if not has_final_file:
                 raise UserError(
-                    _('Không thể hoàn tất hợp đồng "%s": Chưa có bản hợp đồng đánh dấu đủ 2 chữ ký.')
+                    _('Không thể hoàn tất hợp đồng "%s": CTV chưa nộp tệp bản ký hợp đồng.')
                     % rec.name
                 )
             if not rec.th_final_attachment_id:
-                final_doc = rec.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')[:1]
+                final_doc = rec.th_document_ids.filtered(lambda d: d.th_document_type in ('final_signed', 'ctv_signed', 'ctv_digital_signed'))[:1]
                 if final_doc and final_doc.th_attachment_id:
                     rec.th_final_attachment_id = final_doc.th_attachment_id.id
             rec.write({'state': 'close'})
             rec.message_post(body=_('Quản lý (%s) đã phê duyệt hoàn tất hợp đồng.') % self.env.user.name)
 
     def action_set_close_batch(self):
-        """Quản lý duyệt hoàn tất hàng loạt cho các hợp đồng đã đủ điều kiện 2 chữ ký."""
+        """Quản lý duyệt hoàn tất hàng loạt cho các hợp đồng đang ở Chờ duyệt (hoặc Chờ ký)."""
         if not (self.env.user.has_group('th_collaborator.th_role_collaborator_manager') or self.env.is_superuser()):
             raise UserError(_('Chỉ Quản lý hoặc Quản trị viên mới có quyền phê duyệt Hoàn tất hợp đồng.'))
         valid_contracts = self.filtered(
-            lambda c: c.state in ('valid', 'submitted', 'pending_sign') and not c.th_is_readonly and (
-                c.th_final_attachment_id or c.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')
+            lambda c: c.state in ('submitted', 'pending_sign') and not c.th_is_readonly and (
+                c.th_final_attachment_id or c.th_self_attachment_ids or c.th_document_ids.filtered(lambda d: d.th_document_type in ('final_signed', 'ctv_signed', 'ctv_digital_signed'))
             )
         )
         if not valid_contracts:
-            raise UserError(_('Không có hợp đồng nào đủ điều kiện (đủ 2 chữ ký) để Quản lý duyệt hoàn tất.'))
+            raise UserError(_('Không có hợp đồng nào ở trạng thái "Chờ duyệt" có tệp nộp để Quản lý duyệt hoàn tất.'))
         for rec in valid_contracts:
             if not rec.th_final_attachment_id:
-                final_doc = rec.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')[:1]
+                final_doc = rec.th_document_ids.filtered(lambda d: d.th_document_type in ('final_signed', 'ctv_signed', 'ctv_digital_signed'))[:1]
                 if final_doc and final_doc.th_attachment_id:
                     rec.th_final_attachment_id = final_doc.th_attachment_id.id
             rec.write({'state': 'close'})
@@ -788,8 +738,8 @@ class ThCollaboratorContract(models.Model):
         """Phát hành email mời ký hợp đồng đến địa chỉ email của CTV."""
         self.ensure_one()
         error_msg = False
-        if self.state not in ('legal_approved', 'sent', 'mail_error'):
-            error_msg = _('Hợp đồng chưa được Bộ phận Pháp chế phê duyệt (Cần ở trạng thái "Pháp chế đã duyệt" trước khi gửi email).')
+        if self.state not in ('approved', 'sent', 'mail_error'):
+            error_msg = _('Hợp đồng chưa được Bộ phận Pháp chế phê duyệt (Cần ở trạng thái "Đã duyệt" trước khi gửi email).')
         elif not self.th_email:
             error_msg = _('CTV chưa có địa chỉ email để gửi hợp đồng.')
         elif not self.user_id.email:
@@ -910,7 +860,7 @@ class ThCollaboratorContract(models.Model):
                 skipped_records.append((rec, _('CTV đã nộp bản ký / đang xử lý duyệt')))
             elif rec.state == 'sent':
                 skipped_records.append((rec, _('Đã gửi mail trước đó')))
-            elif rec.state not in ('legal_approved', 'mail_error'):
+            elif rec.state not in ('approved', 'mail_error'):
                 skipped_records.append((rec, _('Chưa được Pháp chế phê duyệt')))
             else:
                 processable_records |= rec
@@ -1050,7 +1000,7 @@ class ThCollaboratorContract(models.Model):
             raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc đã Hết hạn, không thể tải lên thêm tệp.'))
         if self.state in ('close', 'cancel'):
             raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể tải lên thêm tệp.'))
-        default_doc_type = 'final_signed' if self.state in ('submitted', 'pending_sign', 'valid') else False
+        default_doc_type = 'final_signed' if self.state in ('submitted', 'pending_sign') else False
         return {
             'name': _('Tải lên tệp hợp đồng'),
             'type': 'ir.actions.act_window',

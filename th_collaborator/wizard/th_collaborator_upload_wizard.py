@@ -195,7 +195,7 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                     if len(profile.th_contract_ids) == 1:
                         target_contract = profile.th_contract_ids[0]
                     else:
-                        running = profile.th_contract_ids.filtered(lambda c: c.state == 'open')
+                        running = profile.th_contract_ids.filtered(lambda c: c.state in ('draft', 'legal_review', 'approved'))
                         if len(running) == 1:
                             target_contract = running[0]
 
