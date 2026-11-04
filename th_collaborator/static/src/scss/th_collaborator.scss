@@ -42,4 +42,18 @@
     margin-top: 21px !important;
 }
 
+/* Loại bỏ hoàn toàn viền khung bên trong các phân vùng của thẻ Kanban hợp đồng */
+.o_kanban_view .o_kanban_record {
+    .o_kanban_record_top,
+    .o_kanban_record_body,
+    .o_kanban_record_bottom,
+    .oe_kanban_content {
+        border: none !important;
+        box-shadow: none !important;
+        background-color: transparent !important;
+    }
+}
+
+
+
 

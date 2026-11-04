@@ -51,52 +51,64 @@
                 <field name="name"/>
                 <field name="th_code"/>
                 <field name="th_collaborator_id"/>
+                <field name="th_phone"/>
                 <field name="user_id"/>
-                <field name="th_batch_date"/>
                 <field name="date_start"/>
                 <field name="date_end"/>
+                <field name="th_batch_date"/>
                 <field name="state"/>
-                <field name="th_contract_type_ids"/>
                 <templates>
                     <t t-name="kanban-box">
-                        <div t-attf-class="oe_kanban_global_click o_kanban_record">
-                            <div class="o_kanban_record_top mb-1">
-                                <div class="o_kanban_record_headings">
-                                    <strong class="o_kanban_record_title text-primary">
-                                        <field name="th_code"/>
-                                    </strong>
-                                    <div class="text-muted">
-                                        <field name="name"/>
+                        <div t-attf-class="oe_kanban_card oe_kanban_global_click">
+                            <div class="oe_kanban_content">
+                                <div class="o_kanban_record_top">
+                                    <div class="o_kanban_record_headings">
+                                        <strong class="o_kanban_record_title">
+                                            <field name="name"/>
+                                        </strong>
+                                    </div>
+                                    <div class="o_dropdown_kanban dropdown">
+                                        <a class="dropdown-toggle o-no-caret btn ps-1 pe-1" role="button" data-bs-toggle="dropdown" href="#" aria-label="Dropdown menu" title="Dropdown menu">
+                                            <span class="fa fa-ellipsis-v"/>
+                                        </a>
+                                        <div class="dropdown-menu" role="menu">
+                                            <t t-if="widget.editable"><a role="menuitem" type="edit" class="dropdown-item">Chỉnh sửa</a></t>
+                                            <t t-if="widget.deletable"><a role="menuitem" type="delete" class="dropdown-item">Xóa</a></t>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="o_kanban_record_body mb-2">
-                                <div>
-                                    <strong>CTV:
-                                    
-                                    </strong>
-                                    <field name="th_collaborator_id"/>
+
+                                <div class="o_kanban_record_body">
+                                    <div class="text-muted d-flex align-items-center mt-1">
+                                        <span class="fa fa-user me-2 text-muted" aria-label="CTV" title="Cộng tác viên"/>
+                                        <field name="th_collaborator_id"/>
+                                        <span t-if="record.th_phone.raw_value" class="ms-1">(<field name="th_phone"/>)</span>
+                                    </div>
+                                    <div t-if="record.date_start.raw_value and record.date_end.raw_value" class="text-muted d-flex align-items-center mt-1">
+                                        <span class="fa fa-clock-o me-2 text-muted" aria-label="Thời hạn" title="Thời hạn hợp đồng"/>
+                                        <span><field name="date_start"/> &#8594; <field name="date_end"/></span>
+                                    </div>
+                                    <div t-elif="record.th_batch_date.raw_value" class="text-muted d-flex align-items-center mt-1">
+                                        <span class="fa fa-calendar me-2 text-muted" aria-label="Ngày đẩy" title="Ngày đẩy hợp đồng"/>
+                                        <span><field name="th_batch_date"/></span>
+                                    </div>
                                 </div>
-                                <div t-if="record.th_batch_date.raw_value" class="text-muted small">
-                                    Ngày đẩy: <field name="th_batch_date"/>
-                                </div>
-                                <div class="mt-1">
-                                    <field name="th_contract_type_ids" widget="many2many_tags" options="{'color_field': 'th_color'}"/>
-                                </div>
-                            </div>
-                            <div class="o_kanban_record_bottom">
-                                <div class="oe_kanban_bottom_left">
-                                    <field name="state" widget="label_selection"
-                                           options="{'classes': {'draft': 'default', 'open': 'info', 'sent': 'primary', 'submitted': 'warning', 'pending_sign': 'warning', 'valid': 'info', 'close': 'success', 'cancel': 'danger', 'mail_error': 'danger'}}"/>
-                                </div>
-                                <div class="oe_kanban_bottom_right">
-                                    <field name="user_id" widget="many2one_avatar_user"/>
+
+                                <div class="o_kanban_record_bottom mt-2">
+                                    <div class="oe_kanban_bottom_left">
+                                        <field name="state" widget="label_selection"
+                                               options="{'classes': {'draft': 'default', 'open': 'info', 'sent': 'primary', 'submitted': 'warning', 'pending_sign': 'warning', 'valid': 'info', 'close': 'success', 'cancel': 'danger', 'mail_error': 'danger'}}"/>
+                                    </div>
+                                    <div class="oe_kanban_bottom_right">
+                                        <field name="user_id" widget="many2one_avatar_user"/>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </t>
                 </templates>
-            </kanban></field>
+            </kanban>
+        </field>
     </record>
     <!-- Form View Hợp đồng CTV -->
     <record id="th_collaborator_contract_form_view" model="ir.ui.view">
