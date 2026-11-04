@@ -42,8 +42,8 @@
     margin-top: 21px !important;
 }
 
-/* Loại bỏ hoàn toàn viền khung bên trong các phân vùng của thẻ Kanban hợp đồng */
-.o_kanban_view .o_kanban_record {
+/* Phạm vi áp dụng chỉ dành riêng cho Kanban Hợp đồng CTV, tuyệt đối không ảnh hưởng module khác */
+.th_contract_kanban.o_kanban_view .o_kanban_record {
     .o_kanban_record_top,
     .o_kanban_record_body,
     .o_kanban_record_bottom,

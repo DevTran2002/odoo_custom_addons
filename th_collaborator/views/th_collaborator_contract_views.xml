@@ -46,7 +46,7 @@
         <field name="name">th.collaborator.contract.kanban</field>
         <field name="model">th.collaborator.contract</field>
         <field name="arch" type="xml">
-            <kanban default_group_by="state" class="o_kanban_small_column" quick_create="false">
+            <kanban default_group_by="state" class="o_kanban_small_column th_contract_kanban" quick_create="false">
                 <field name="id"/>
                 <field name="name"/>
                 <field name="th_code"/>
