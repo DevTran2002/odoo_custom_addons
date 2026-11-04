@@ -40,21 +40,32 @@
                         border: 1px solid #e2e8f0;
                         border-radius: 6px;
                     }
+                    .th_batch_settings_table .o_td_label {
+                        min-width: 140px !important;
+                        white-space: nowrap !important;
+                    }
                 </style>
 
                 <field name="th_is_done" invisible="1"/>
 
                 <div attrs="{'invisible': [('th_is_done', '=', True)]}">
-                    <group>
-                        <group string="Lựa chọn nghiệp vụ">
-                            <field name="th_contract_type" widget="radio" required="1"/>
-                            <field name="th_action_type" widget="radio" required="1"/>
-                        </group>
-                        <group string="Thống kê tệp">
-                            <field name="th_total_selected" readonly="1"/>
-                            <field name="th_total_has_file" readonly="1"/>
-                        </group>
-                    </group>
+                    <div class="row">
+                        <div class="col-12 col-md-7">
+                            <group string="Lựa chọn nghiệp vụ" class="th_batch_settings_table">
+                                <field name="th_contract_type" widget="radio" required="1"/>
+                                <field name="th_action_type" widget="radio" required="1"/>
+                                <field name="th_company_sign_type" widget="radio" string="Chữ ký số"
+                                       attrs="{'invisible': ['|', ('th_contract_type', '!=', 'company'), ('th_action_type', '=', 'download')],
+                                               'required': [('th_contract_type', '=', 'company'), ('th_action_type', '!=', 'download')]}"/>
+                            </group>
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <group string="Thống kê tệp">
+                                <field name="th_total_selected" readonly="1"/>
+                                <field name="th_total_has_file" readonly="1"/>
+                            </group>
+                        </div>
+                    </div>
 
                     <!-- Danh sách hợp đồng đã chọn -->
                     <div class="mb-3">
@@ -73,7 +84,8 @@
                                     <field name="name" string="Tên hợp đồng"/>
                                     <field name="th_collaborator_id" string="Cộng tác viên"/>
                                     <field name="th_phone" string="SĐT"/>
-                                    <field name="th_company_file_name" string="Tệp công ty" optional="show"/>
+                                    <field name="th_company_signed_file_name" string="HĐ có chữ ký số" optional="show"/>
+                                    <field name="th_company_raw_file_name" string="HĐ chưa có ký số" optional="show"/>
                                     <field name="th_self_file_name" string="Tệp CTV nộp" optional="show"/>
                                     <field name="th_final_file_name" string="Tệp 2 chữ ký" optional="show"/>
                                     <field name="state" widget="badge" string="Trạng thái"/>
@@ -87,36 +99,48 @@
                         <div class="fw-bold mb-1 text-primary">HƯỚNG DẪN TẢI GÓI TỆP ZIP:</div>
                         <ul class="mb-0 ps-3">
                             <li>Hệ thống sẽ tổng hợp tất cả các tệp tương ứng của các hợp đồng đã chọn và nén vào 1 tệp ZIP duy nhất.</li>
-                            <li>Tên các tệp bên trong ZIP được đánh số và đặt theo cấu trúc chuẩn: <code>STT.MãHĐ - TênCTV.pdf</code>.</li>
-                            <li>Các hợp đồng chưa có tệp sẽ tự động được bỏ qua.</li>
+                            <li>Tên các tệp bên trong ZIP được đánh số và đặt theo cấu trúc chuẩn: <code>[stt].AUM-HĐDVTT.[Tên CTV].pdf</code>.</li>
+                            <li>Các hợp đồng chưa có tệp tương ứng sẽ tự động được bỏ qua.</li>
                         </ul>
                     </div>
 
                     <!-- Giao diện khi chọn Nạp tệp lên hàng loạt -->
                     <div attrs="{'invisible': [('th_action_type', '!=', 'upload')]}">
-                        <div class="alert alert-warning mt-2 mb-3" role="alert">
-                            <div class="fw-bold mb-1 text-danger">HƯỚNG DẪN NẠP TỆP HÀNG LOẠT:</div>
+                        <div class="alert alert-info mt-2 mb-3" role="alert">
+                            <div class="fw-bold mb-1 text-primary">HƯỚNG DẪN NẠP TỆP HÀNG LOẠT:</div>
                             <ul class="mb-0 ps-3">
-                                <li>Tên tệp tải lên bắt buộc phải chứa <strong>Mã hợp đồng</strong> hoặc <strong>Số điện thoại của CTV</strong> (ví dụ: <code>HD01.pdf</code> hoặc <code>0912345678_HD01.pdf</code>).</li>
-                                <li>Hệ thống <strong>chỉ tìm và cập nhật vào danh sách các hợp đồng đang được chọn</strong> ở bảng trên.</li>
-                                <li>Nếu tệp không khớp với bất kỳ hợp đồng nào đã chọn, tệp đó sẽ bị bỏ qua và thông báo chi tiết.</li>
+                                <li>Hỗ trợ nạp thêm tệp vào các hợp đồng đã chọn (không phân biệt hợp đồng đã có tệp hay chưa).</li>
+                                <li>Tên tệp tải lên bắt buộc phải chứa <strong>Mã hợp đồng</strong> hoặc <strong>Số điện thoại của CTV</strong> hoặc đặt theo định dạng chuẩn <code>[stt].AUM-HĐDVTT.[Tên CTV].pdf</code>.</li>
                             </ul>
                         </div>
+                    </div>
 
-                        <div class="mt-2">
-                            <label for="th_attachment_ids" string="Chọn danh sách tệp đính kèm (PDF, JPG, PNG)" class="fw-bold mb-2 text-uppercase text-muted small"/>
-                            <div class="th_batch_upload_scroll_container th_batch_upload_grid">
-                                <field name="th_attachment_ids" widget="many2many_binary" nolabel="1"
-                                       options="{'accepted_file_extensions': '.pdf,.jpg,.jpeg,.png'}"
-                                       attrs="{'required': [('th_action_type', '=', 'upload'), ('th_is_done', '=', False)]}"/>
-                            </div>
+                    <!-- Giao diện khi chọn Thay thế tệp hàng loạt -->
+                    <div attrs="{'invisible': [('th_action_type', '!=', 'replace')]}">
+                        <div class="alert alert-warning mt-2 mb-3" role="alert">
+                            <div class="fw-bold mb-1 text-danger">LƯU Ý THAY THẾ TỆP HÀNG LOẠT:</div>
+                            <ul class="mb-0 ps-3">
+                                <li>Chỉ áp dụng để thay thế cho các hợp đồng <strong>đã có tệp tương ứng</strong> trong hệ thống.</li>
+                                <li>Hệ thống sẽ <strong>ghi đè trực tiếp</strong> lên tệp có cùng tên. Các tệp khác tên trong hợp đồng sẽ được giữ nguyên vẹn.</li>
+                                <li>Tên tệp tải lên bắt buộc phải chứa <strong>Mã hợp đồng</strong> hoặc <strong>Số điện thoại của CTV</strong> hoặc đặt theo định dạng chuẩn <code>[stt].AUM-HĐDVTT.[Tên CTV].pdf</code>.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Khung tải tệp dùng chung cho Nạp mới và Thay thế -->
+                    <div attrs="{'invisible': [('th_action_type', '=', 'download')]}" class="mt-2">
+                        <label for="th_attachment_ids" string="Chọn danh sách tệp đính kèm (PDF, JPG, PNG)" class="fw-bold mb-2 text-uppercase text-muted small"/>
+                        <div class="th_batch_upload_scroll_container th_batch_upload_grid">
+                            <field name="th_attachment_ids" widget="many2many_binary" nolabel="1"
+                                   options="{'accepted_file_extensions': '.pdf,.jpg,.jpeg,.png'}"
+                                   attrs="{'required': [('th_action_type', 'in', ('upload', 'replace')), ('th_is_done', '=', False)]}"/>
                         </div>
                     </div>
                 </div>
 
                 <!-- Hiển thị kết quả sau khi xử lý thao tác -->
-                <div attrs="{'invisible': [('th_is_done', '=', False)]}" class="py-2">
-                    <field name="th_result_note" nolabel="1" readonly="1" class="d-block w-100" style="white-space: pre-wrap;"/>
+                <div attrs="{'invisible': [('th_is_done', '=', False)]}" class="py-2" style="min-width: 550px; min-height: 80px;">
+                    <field name="th_result_note" nolabel="1" readonly="1" class="d-block w-100" style="white-space: pre-wrap; font-size: 14px;"/>
                 </div>
 
                 <footer>
@@ -124,6 +148,8 @@
                             attrs="{'invisible': ['|', ('th_action_type', '!=', 'download'), ('th_is_done', '=', True)]}"/>
                     <button name="th_action_upload_files" type="object" string="Thực hiện nạp tệp" class="btn-primary"
                             attrs="{'invisible': ['|', ('th_action_type', '!=', 'upload'), ('th_is_done', '=', True)]}"/>
+                    <button name="th_action_upload_files" type="object" string="Thực hiện thay thế tệp" class="btn-primary"
+                            attrs="{'invisible': ['|', ('th_action_type', '!=', 'replace'), ('th_is_done', '=', True)]}"/>
                     <button string="Đóng" special="cancel"/>
                 </footer>
             </form>

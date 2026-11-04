@@ -107,6 +107,10 @@ class ThCollaboratorContract(models.Model):
 
     th_company_file_name = fields.Char(
         string='HĐ công ty cung cấp', compute='_compute_contract_file_info', store=True)
+    th_company_signed_file_name = fields.Char(
+        string='HĐ công ty có chữ ký số', compute='_compute_contract_file_info', store=True)
+    th_company_raw_file_name = fields.Char(
+        string='HĐ công ty chưa ký số', compute='_compute_contract_file_info', store=True)
     th_self_file_name = fields.Char(
         string='HĐ CTV nộp', compute='_compute_contract_file_info', store=True)
     th_final_file_name = fields.Char(
@@ -199,6 +203,14 @@ class ThCollaboratorContract(models.Model):
                 rec.th_company_file_name = company_files[0] if len(company_files) == 1 else f"{company_files[0]} (+{len(company_files) - 1})"
             else:
                 rec.th_company_file_name = _('Chưa có file')
+
+            signed_docs = rec.th_document_ids.filtered(lambda d: d.th_document_type == 'company_signed')
+            signed_files = signed_docs.mapped('name') or (rec.th_company_attachment_ids.mapped('name') if not company_docs else [])
+            rec.th_company_signed_file_name = signed_files[0] if signed_files else _('Chưa có')
+
+            raw_docs = rec.th_document_ids.filtered(lambda d: d.th_document_type == 'company_raw')
+            raw_files = raw_docs.mapped('name')
+            rec.th_company_raw_file_name = raw_files[0] if raw_files else _('Chưa có')
 
             self_docs = rec.th_document_ids.filtered(lambda d: d.th_document_type in ('ctv_signed', 'ctv_digital_signed'))
             self_files = self_docs.mapped('name') or rec.th_self_attachment_ids.mapped('name')

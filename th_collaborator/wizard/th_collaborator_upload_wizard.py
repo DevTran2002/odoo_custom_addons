@@ -191,21 +191,69 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                     'res_model': target_contract._name,
                     'res_id': target_contract.id,
                 })
-                target_contract.write({
-                    'th_company_attachment_ids': [Command.set([att.id])],
-                })
-                self.env['th.collaborator.contract.document'].sudo().create({
-                    'name': att.name,
-                    'th_contract_id': target_contract.id,
-                    'th_document_type': 'company_signed',
-                    'th_file': att.datas,
-                    'th_file_name': att.name,
-                    'th_attachment_id': att.id,
-                    'th_uploaded_by': 'company',
-                    'th_upload_date': fields.Datetime.now(),
-                    'th_user_id': self.env.user.id,
-                    'th_notes': _('Thay thế file qua nạp hàng loạt'),
-                })
+                # Cập nhật danh sách attachment: giữ nguyên các tệp khác, chỉ thay thế tệp cùng tên nếu có
+                old_same_name_atts = target_contract.th_company_attachment_ids.filtered(lambda a: a.name == att.name)
+                commands = [Command.link(att.id)]
+                for old_a in old_same_name_atts:
+                    if old_a.id != att.id:
+                        commands.append(Command.unlink(old_a.id))
+                target_contract.write({'th_company_attachment_ids': commands})
+
+                # Tìm bản ghi tài liệu có cùng tên file để ghi đè đúng tệp đó
+                same_name_docs = target_contract.th_document_ids.filtered(
+                    lambda d: d.name == att.name or d.th_file_name == att.name
+                )
+                if same_name_docs:
+                    # Ghi đè đúng bản ghi tài liệu cùng tên
+                    main_doc = same_name_docs[0]
+                    main_doc.sudo().write({
+                        'name': att.name,
+                        'th_document_type': 'company_signed',
+                        'th_file': att.datas,
+                        'th_file_name': att.name,
+                        'th_attachment_id': att.id,
+                        'th_uploaded_by': 'company',
+                        'th_upload_date': fields.Datetime.now(),
+                        'th_user_id': self.env.user.id,
+                        'th_notes': _('Thay thế file qua nạp hàng loạt'),
+                    })
+                    # Chỉ dọn dẹp nếu có các bản ghi trùng tên do lần trước tạo thừa
+                    if len(same_name_docs) > 1:
+                        same_name_docs[1:].sudo().unlink()
+                else:
+                    # Nếu không có tệp nào trùng tên:
+                    # Nếu hợp đồng chỉ có duy nhất 1 tệp công ty thì thay thế tệp đó
+                    company_docs = target_contract.th_document_ids.filtered(
+                        lambda d: d.th_document_type in ('company_signed', 'company_raw')
+                    )
+                    if len(company_docs) == 1:
+                        main_doc = company_docs[0]
+                        main_doc.sudo().write({
+                            'name': att.name,
+                            'th_document_type': 'company_signed',
+                            'th_file': att.datas,
+                            'th_file_name': att.name,
+                            'th_attachment_id': att.id,
+                            'th_uploaded_by': 'company',
+                            'th_upload_date': fields.Datetime.now(),
+                            'th_user_id': self.env.user.id,
+                            'th_notes': _('Thay thế file qua nạp hàng loạt'),
+                        })
+                    else:
+                        # Nếu hợp đồng có nhiều tệp khác nhau thì thêm mới tệp này, giữ nguyên vẹn các tệp khác
+                        self.env['th.collaborator.contract.document'].sudo().create({
+                            'name': att.name,
+                            'th_contract_id': target_contract.id,
+                            'th_document_type': 'company_signed',
+                            'th_file': att.datas,
+                            'th_file_name': att.name,
+                            'th_attachment_id': att.id,
+                            'th_uploaded_by': 'company',
+                            'th_upload_date': fields.Datetime.now(),
+                            'th_user_id': self.env.user.id,
+                            'th_notes': _('Thay thế file qua nạp hàng loạt'),
+                        })
+
                 target_contract.message_post(
                     body=_('Đã thay thế file hợp đồng công ty cũ [%s] bằng file mới [%s] qua nạp hàng loạt.') % (
                         ', '.join(old_file_names) if old_file_names else _('Chưa có'), att.name

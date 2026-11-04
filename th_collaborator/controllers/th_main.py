@@ -159,7 +159,7 @@ class ThCollaboratorController(http.Controller):
         )
 
     @http.route('/th_collaborator/download_batch', type='http', auth='user', methods=['GET'])
-    def download_batch_contract_files(self, contract_ids='', contract_type='company', **kwargs):
+    def download_batch_contract_files(self, contract_ids='', contract_type='company', company_sign_type='signed', **kwargs):
         """Tải gói tệp ZIP chứa toàn bộ tài liệu hợp đồng của các bản ghi đã chọn."""
         if not contract_ids:
             return request.not_found()
@@ -185,7 +185,14 @@ class ThCollaboratorController(http.Controller):
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for idx, contract in enumerate(contracts, start=1):
                 if contract_type == 'company':
-                    attachments = contract._get_company_mail_attachments()
+                    if company_sign_type == 'signed':
+                        docs = contract.th_document_ids.filtered(lambda d: d.th_document_type == 'company_signed')
+                        attachments = docs.mapped('th_attachment_id')
+                        if not attachments and contract.th_company_attachment_ids:
+                            attachments = contract.th_company_attachment_ids
+                    else:
+                        docs = contract.th_document_ids.filtered(lambda d: d.th_document_type == 'company_raw')
+                        attachments = docs.mapped('th_attachment_id')
                 elif contract_type == 'self':
                     attachments = contract.th_self_attachment_ids
                 else:
@@ -231,7 +238,7 @@ class ThCollaboratorController(http.Controller):
             return request.not_found()
 
         type_suffix = {
-            'company': 'HD_CongTy',
+            'company': 'HD_CongTy_DaKySo' if company_sign_type == 'signed' else 'HD_CongTy_ChuaKy',
             'self': 'HD_CTV_Nop',
             'final': 'HD_HoanTat',
         }.get(contract_type, 'HopDong')
