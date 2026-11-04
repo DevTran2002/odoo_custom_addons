@@ -103,6 +103,8 @@ class ThCollaboratorContract(models.Model):
     th_final_attachment_id = fields.Many2one(
         'ir.attachment', string='Hợp đồng hoàn tất đủ 2 chữ ký', copy=False)
     th_mail_sent_date = fields.Datetime(string='Ngày gửi mail', copy=False)
+    th_reminder_date = fields.Datetime(
+        string='Ngày gửi mail nhắc nhở', copy=False, tracking=True)
     th_last_upload_date = fields.Datetime(string='Ngày CTV tải lên', copy=False)
 
     th_company_file_name = fields.Char(
@@ -721,6 +723,7 @@ class ThCollaboratorContract(models.Model):
 
             vals = {
                 'th_mail_sent_date': fields.Datetime.now(),
+                'th_reminder_date': False,
                 'th_mail_error': False,
                 'state': 'sent',
             }
@@ -833,6 +836,7 @@ class ThCollaboratorContract(models.Model):
 
                 vals = {
                     'th_mail_sent_date': fields.Datetime.now(),
+                    'th_reminder_date': False,
                     'th_mail_error': False,
                     'state': 'sent',
                 }
@@ -1028,9 +1032,71 @@ class ThCollaboratorContract(models.Model):
             },
         }
 
+    def th_action_send_contract_reminder(self):
+        """Gửi email nhắc nhở CTV hoàn thiện và nộp bản ký hợp đồng (kèm tệp hợp đồng công ty)."""
+        self.ensure_one()
+        if self.state in ('close', 'cancel'):
+            raise UserError(_('Hợp đồng "%s" đã hoàn tất hoặc đã hủy, không thể gửi nhắc nhở.') % self.name)
+        if self.th_is_expired:
+            raise UserError(_('Hợp đồng "%s" đã hết hạn hiệu lực.') % self.name)
+        if self.th_is_signed:
+            raise UserError(_('Hợp đồng "%s" đã được CTV nộp bản ký.') % self.name)
+        if not self.th_email:
+            raise UserError(_('CTV chưa có địa chỉ email để gửi thư nhắc nhở.'))
+
+        company_attachments = self._get_company_mail_attachments()
+        if not company_attachments:
+            raise UserError(_('Hợp đồng chưa có tài liệu công ty để đính kèm gửi thư nhắc nhở.'))
+
+        reminder_template = self._get_contract_reminder_mail_template()
+        if not reminder_template:
+            raise UserError(_('Không tìm thấy mẫu email nhắc nhở hợp đồng.'))
+
+        try:
+            email_values = {
+                'email_from': self.user_id.email_formatted or self.env.company.email,
+                'reply_to': self.user_id.email_formatted or self.env.company.email,
+                'email_to': self.th_email,
+                'email_cc': self.user_id.email if self.user_id.email else False,
+                'attachment_ids': company_attachments.ids,
+            }
+            reminder_template.send_mail(self.id, force_send=True, email_values=email_values)
+            self.write({
+                'th_reminder_date': fields.Datetime.now(),
+            })
+            attached_names = ', '.join(company_attachments.mapped('name'))
+            self.message_post(
+                body=_('Đã gửi email nhắc nhở CTV nộp bản ký hợp đồng đến: %s (Đính kèm: %s)') % (self.th_email, attached_names)
+            )
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Thành công'),
+                    'message': _('Đã gửi email nhắc nhở nộp bản ký cho CTV: %s') % self.th_email,
+                    'type': 'success',
+                    'sticky': False,
+                    'next': {'type': 'ir.actions.client', 'tag': 'reload'},
+                }
+            }
+        except Exception as e:
+            err_detail = str(e)
+            self.message_post(body=_('Gửi email nhắc nhở hợp đồng thất bại: %s') % err_detail)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Gửi email nhắc nhở thất bại'),
+                    'message': err_detail,
+                    'type': 'danger',
+                    'sticky': True,
+                    'next': {'type': 'ir.actions.client', 'tag': 'reload'},
+                }
+            }
+
     @api.model
     def th_cron_send_contract_reminders(self):
-        """Cron job hằng ngày: Cập nhật hạn hợp đồng và gửi email nhắc nhở nộp hợp đồng."""
+        """Cron job hằng ngày: Cập nhật hạn hợp đồng và tự động gửi email nhắc nhở nộp hợp đồng sau 2 ngày nếu CTV chưa nộp bản ký."""
         today = fields.Date.context_today(self)
         active_contracts = self.search([
             ('date_end', '!=', False),
@@ -1040,9 +1106,11 @@ class ThCollaboratorContract(models.Model):
             active_contracts._compute_expiration_status()
 
         contracts = self.search([
-            ('state', '=', 'open'),
-            ('th_self_attachment_ids', '=', False),
-            ('date_end', '!=', False),
+            ('state', '=', 'sent'),
+            ('th_mail_sent_date', '!=', False),
+            ('th_reminder_date', '=', False),
+            ('th_is_signed', '=', False),
+            ('th_is_expired', '=', False),
             ('th_email', '!=', False),
         ])
         reminder_template = self._get_contract_reminder_mail_template()
@@ -1052,19 +1120,29 @@ class ThCollaboratorContract(models.Model):
 
         reminded_count = 0
         for contract in contracts:
-            days_diff = (contract.date_end - today).days
-            if days_diff <= 3:
+            sent_date = fields.Date.to_date(contract.th_mail_sent_date)
+            if not sent_date:
+                continue
+            days_diff = (today - sent_date).days
+            if days_diff >= 2:
                 try:
+                    company_attachments = contract._get_company_mail_attachments()
                     email_values = {
                         'email_from': contract.user_id.email_formatted or self.env.company.email,
                         'reply_to': contract.user_id.email_formatted or self.env.company.email,
                         'email_to': contract.th_email,
                         'email_cc': contract.user_id.email if contract.user_id.email else False,
+                        'attachment_ids': company_attachments.ids,
                     }
                     reminder_template.send_mail(contract.id, force_send=True, email_values=email_values)
+                    contract.write({
+                        'th_reminder_date': fields.Datetime.now(),
+                    })
+                    attached_names = ', '.join(company_attachments.mapped('name'))
                     contract.message_post(
-                        body=_('Hệ thống đã tự động gửi email nhắc nhở nộp hợp đồng cho CTV (Hạn kết thúc: %s).')
-                        % contract.date_end.strftime('%d/%m/%Y')
+                        body=_(
+                            'Hệ thống đã tự động gửi email nhắc nhở CTV nộp bản ký hợp đồng sau %s ngày gửi thư lần đầu (Đính kèm: %s).'
+                        ) % (days_diff, attached_names or _('Không có tệp'))
                     )
                     reminded_count += 1
                 except Exception as e:

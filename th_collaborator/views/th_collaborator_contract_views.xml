@@ -26,6 +26,7 @@
                 <field name="th_company_file_name" string="HĐ công ty cung cấp"/>
                 <field name="th_self_file_name" string="HĐ CTV nộp"/>
                 <field name="th_final_file_name" string="HĐ đủ 2 chữ ký"/>
+                <field name="th_reminder_date" optional="hide"/>
                 <field name="state" widget="badge"
                        decoration-info="state == 'open'"
                        decoration-primary="state in ('sent', 'valid')"
@@ -128,6 +129,9 @@
                     <button name="th_action_send_contract_mail" type="object" string="Gửi lại mail" class="btn-secondary"
                             attrs="{'invisible': ['|', ('state', '!=', 'sent'), ('th_is_readonly', '=', True)]}"
                             confirm="Hợp đồng này đã được gửi mail trước đó. Bạn có chắc muốn gửi lại?"/>
+                    <button name="th_action_send_contract_reminder" type="object" string="Gửi mail nhắc nhở" class="btn-secondary"
+                            attrs="{'invisible': ['|', '|', ('state', '!=', 'sent'), ('th_is_signed', '=', True), ('th_is_readonly', '=', True)]}"
+                            confirm="Bạn có chắc chắn muốn gửi email nhắc nhở hoàn thiện bản ký cho CTV này không?"/>
 
                     <button name="action_set_close" type="object" string="Xác nhận hoàn tất" class="btn-secondary"
                             attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign', 'valid')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '=', 'Chưa có')]}"/>
@@ -221,6 +225,7 @@
                             <field name="th_expiration_status"/>
                             <field name="th_is_signed" readonly="1"/>
                             <field name="th_mail_sent_date" readonly="1"/>
+                            <field name="th_reminder_date" readonly="1" attrs="{'invisible': [('th_reminder_date', '=', False)]}"/>
                             <field name="th_last_upload_date" readonly="1"/>
                         </group>
                     </group>
