@@ -101,7 +101,6 @@ class ThCollaboratorController(http.Controller):
             values['error'] = error
             return self._render_upload_page(values)
 
-        # sudo: Người dùng công khai nộp tệp hợp đồng trực tiếp theo token mà không cần đăng nhập nội bộ
         upload_type = kwargs.get('th_upload_type', 'signed_template')
         ctv_notes = (kwargs.get('th_notes') or '').strip()
         contract.sudo()._add_self_contracts(files, upload_type=upload_type, ctv_notes=ctv_notes)
@@ -111,7 +110,7 @@ class ThCollaboratorController(http.Controller):
         return self._render_upload_page(values)
 
     @http.route('/th_collaborator/download_file', type='http', auth='user', methods=['GET'])
-    def download_contract_file(self, contract_id, contract_type='company', stt='1', **kwargs):
+    def download_contract_file(self, contract_id, contract_type='company', **kwargs):
         """Tải trực tiếp tệp hợp đồng về máy người dùng theo tên định dạng chuẩn."""
         contract = request.env['th.collaborator.contract'].browse(int(contract_id)).exists()
         if not contract:
@@ -131,8 +130,7 @@ class ThCollaboratorController(http.Controller):
 
         attachment = attachments[0]
         ext = os.path.splitext(attachment.name or '')[1].lower() or '.pdf'
-        
-        # Đặt tên tệp theo quy chuẩn thống nhất: [Mã hợp đồng] - [SĐT] - [Tên CTV] - [Loại hợp đồng]
+
         code = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_code or f"HD{contract.id}").strip()).strip()
         phone = re.sub(r'[\\/:*?"<>|\s]+', '', str(contract.th_phone or contract.th_collaborator_id.th_phone or 'SDT')).strip()
         ctv_name = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_collaborator_id.name or 'CTV').strip()).strip()
@@ -175,7 +173,6 @@ class ThCollaboratorController(http.Controller):
         contracts.check_access_rights('read')
         contracts.check_access_rule('read')
 
-        # Sắp xếp danh sách hợp đồng theo Số thứ tự CTV để các file trong ZIP có thứ tự chuẩn
         contracts = contracts.sorted(key=lambda c: (c.th_collaborator_id.th_sequence or 999999, c.id))
 
         zip_buffer = io.BytesIO()
@@ -201,7 +198,6 @@ class ThCollaboratorController(http.Controller):
                 if not attachments:
                     continue
 
-                # Đặt tên tệp theo quy chuẩn thống nhất: [Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng]
                 code = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_code or f"HD{contract.id}").strip()).strip()
                 phone = re.sub(r'[\\/:*?"<>|\s]+', '', str(contract.th_phone or contract.th_collaborator_id.th_phone or 'SDT')).strip()
                 ctv_name = re.sub(r'[\\/:*?"<>|]+', '_', (contract.th_collaborator_id.name or 'CTV').strip()).strip()
@@ -224,7 +220,6 @@ class ThCollaboratorController(http.Controller):
                     else:
                         entry_name = f"{code}-{phone}-{ctv_name}-{type_name}{ext}"
 
-                    # Tránh xung đột trùng tên tệp trong file nén ZIP
                     unique_name = entry_name
                     counter = 1
                     while unique_name in used_filenames:

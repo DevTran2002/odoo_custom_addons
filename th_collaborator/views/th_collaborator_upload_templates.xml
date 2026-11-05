@@ -43,7 +43,7 @@
                       method="post" enctype="multipart/form-data" class="card shadow-sm border-0 rounded-3 p-4 bg-white" id="th_upload_form">
                     <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
 
-                    <!-- Khối thông tin hợp đồng tối giản (đã bỏ trạng thái) -->
+                    <!-- Thông tin tóm tắt hợp đồng -->
                     <div class="p-3 rounded-3 mb-4" style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
                         <div class="row g-2" style="font-size: 0.875rem;">
                             <div class="col-sm-6">

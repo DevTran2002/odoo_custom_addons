@@ -58,24 +58,20 @@ class ThCollaboratorUploadWizard(models.TransientModel):
         Profile = self.env['th.collaborator.profile']
         base_name = os.path.splitext(os.path.basename(file_name))[0].strip()
 
-        # 1. Ưu tiên bóc tách theo quy chuẩn: [Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng]
         hyphen_parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
         if len(hyphen_parts) >= 2:
-            # Trường hợp 1a: [Mã HĐ] - [SĐT] - [Tên CTV] - [Loại HĐ]
             p1_phone = Profile._normalize_phone(hyphen_parts[1])
             if len(p1_phone) >= 9:
                 code = hyphen_parts[0]
                 custom_name = ' - '.join(hyphen_parts[2:]) if len(hyphen_parts) > 2 else False
                 return p1_phone, code, custom_name
 
-            # Trường hợp 1b: [SĐT] - [Mã HĐ] - ...
             p0_phone = Profile._normalize_phone(hyphen_parts[0])
             if len(p0_phone) >= 9:
                 code = hyphen_parts[1]
                 custom_name = ' - '.join(hyphen_parts[2:]) if len(hyphen_parts) > 2 else False
                 return p0_phone, code, custom_name
 
-        # 2. Bóc tách dự phòng theo các ký tự phân cách gạch dưới, khoảng trắng
         tokens = [token.strip() for token in re.split(r'[_\-\s]', base_name) if token.strip()]
         if not tokens:
             return False, False, False
@@ -216,7 +212,6 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                     'res_model': target_contract._name,
                     'res_id': target_contract.id,
                 })
-                # Cập nhật danh sách attachment: giữ nguyên các tệp khác, chỉ thay thế tệp cùng tên nếu có
                 old_same_name_atts = target_contract.th_company_attachment_ids.filtered(lambda a: a.name == att.name)
                 commands = [Command.link(att.id)]
                 for old_a in old_same_name_atts:
@@ -224,12 +219,10 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                         commands.append(Command.unlink(old_a.id))
                 target_contract.write({'th_company_attachment_ids': commands})
 
-                # Tìm bản ghi tài liệu có cùng tên file để ghi đè đúng tệp đó
                 same_name_docs = target_contract.th_document_ids.filtered(
                     lambda d: d.name == att.name or d.th_file_name == att.name
                 )
                 if same_name_docs:
-                    # Chỉ thay thế tệp cùng tên có thời gian tải lên gần nhất (tải lên sau cùng)
                     target_doc = same_name_docs.sorted(
                         key=lambda d: (d.th_upload_date or fields.Datetime.now(), d.id),
                         reverse=True
@@ -246,7 +239,6 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                         'th_user_id': self.env.user.id,
                         'th_notes': _('Thay thế file qua nạp hàng loạt'),
                     })
-                    # Giữ nguyên vẹn các tệp cùng tên khác đã tải lên trước đó, không xóa
                     if old_att and old_att.id != att.id:
                         other_using_old = target_contract.th_document_ids.filtered(
                             lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
@@ -254,8 +246,6 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                         if not other_using_old:
                             old_att.sudo().unlink()
                 else:
-                    # Nếu không có tệp nào trùng tên:
-                    # Nếu hợp đồng chỉ có duy nhất 1 tệp công ty thì thay thế tệp đó
                     company_docs = target_contract.th_document_ids.filtered(
                         lambda d: d.th_document_type in ('company_signed', 'company_raw')
                     )
@@ -273,7 +263,6 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                             'th_notes': _('Thay thế file qua nạp hàng loạt'),
                         })
                     else:
-                        # Nếu hợp đồng có nhiều tệp khác nhau thì thêm mới tệp này, giữ nguyên vẹn các tệp khác
                         self.env['th.collaborator.contract.document'].sudo().create({
                             'name': att.name,
                             'th_contract_id': target_contract.id,

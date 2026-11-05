@@ -19,26 +19,8 @@ class ThCollaboratorProfile(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'th_sequence, id desc'
 
-    def th_default_user_id(self):
-        """Mặc định người phụ trách CTV là người tạo bản ghi."""
-        return self.env.user
-
     th_sequence = fields.Integer(
         string='Số thứ tự CTV', default=0, tracking=True, copy=False)
-    th_stt = fields.Integer(
-        string='Số thứ tự CTV', compute='_compute_th_stt', inverse='_inverse_th_stt', store=True)
-
-    @api.depends('th_sequence')
-    def _compute_th_stt(self):
-        """Đồng bộ giá trị STT từ th_sequence."""
-        for rec in self:
-            rec.th_stt = rec.th_sequence
-
-    def _inverse_th_stt(self):
-        """Cập nhật ngược lại th_sequence khi thay đổi th_stt."""
-        for rec in self:
-            rec.th_sequence = rec.th_stt
-
     name = fields.Char(string='Họ và tên', required=True, tracking=True)
     th_program = fields.Char(string='Chương trình', tracking=True)
     th_birthday = fields.Date(string='Ngày sinh', tracking=True)
@@ -49,7 +31,7 @@ class ThCollaboratorProfile(models.Model):
         string='SĐT chuẩn hoá', compute='th_compute_phone_normalized', store=True, index=True)
     user_id = fields.Many2one(
         'res.users', string='Người phụ trách', tracking=True,
-        default=lambda self: self.th_default_user_id())
+        default=lambda self: self.env.user)
 
     th_identification_id = fields.Char(string='Số CCCD', index=True, tracking=True)
     th_id_issue_date = fields.Date(string='Ngày cấp CCCD', tracking=True)

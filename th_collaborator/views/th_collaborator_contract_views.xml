@@ -40,7 +40,8 @@
                         title="Tải về tệp CTV nộp" class="text-primary" attrs="{'invisible': [('th_self_file_name', '=', 'Chưa nộp')]}"/>
                 <button name="th_action_download_final_contracts" type="object" icon="fa-check-circle"
                         title="Tải về tệp hoàn tất 2 chữ ký" class="text-success" attrs="{'invisible': [('th_final_file_name', '=', 'Chưa có')]}"/>
-            </tree></field>
+            </tree>
+        </field>
     </record>
     <!-- Kanban View Hợp đồng CTV -->
     <record id="th_collaborator_contract_kanban_view" model="ir.ui.view">
@@ -184,11 +185,6 @@
                 <sheet>
                     <field name="th_is_readonly" invisible="1"/>
                     <field name="th_is_info_readonly" invisible="1"/>
-                    <style>
-                        .ribbon {
-                            margin-top: 21px !important;
-                        }
-                    </style>
                     <widget name="web_ribbon" title="Hết hạn" bg_color="bg-danger"
                             attrs="{'invisible': [('th_is_expired', '=', False)]}"/>
                     <field name="th_is_expired" invisible="1"/>
@@ -267,7 +263,8 @@
                                     <field name="th_upload_date" readonly="1"/>
                                     <field name="th_user_id" widget="many2one_avatar_user" readonly="1" optional="show" options="{'no_open': True}"/>
                                     <field name="th_notes"/>
-                                </tree></field>
+                                </tree>
+                            </field>
                         </page>
                         <page string="Cổng tải lên hợp đồng" name="th_upload_portal">
                             <group>
@@ -288,7 +285,8 @@
                     <field name="activity_ids"/>
                     <field name="message_ids"/>
                 </div>
-            </form></field>
+            </form>
+        </field>
     </record>
     <!-- Search View Hợp đồng CTV -->
     <record id="th_collaborator_contract_search_view" model="ir.ui.view">
@@ -335,7 +333,8 @@
                     <field name="th_expiration_status" string="Thời hạn" icon="fa-clock-o" enable_counters="1" select="multi"/>
                     <field name="state" string="Trạng thái" icon="fa-tasks" enable_counters="1" select="multi"/>
                 </searchpanel>
-            </search></field>
+            </search>
+        </field>
     </record>
     <!-- Action Hợp đồng CTV -->
     <record id="th_collaborator_contract_action" model="ir.actions.act_window">
@@ -349,7 +348,8 @@
             </p>
             <p>
                 Quản lý vòng đời hợp đồng, gửi email mời CTV ký và tiếp nhận file hợp đồng trực tuyến.
-            </p></field>
+            </p>
+        </field>
     </record>
     <!-- Server Action: Hủy hợp đồng -->
     <record id="th_collaborator_contract_action_cancel_server" model="ir.actions.server">

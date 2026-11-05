@@ -26,6 +26,7 @@
                     <button name="action_confirm_upload" string="Xác nhận tải lên" type="object" class="btn-primary"/>
                     <button string="Hủy" class="btn-secondary" special="cancel"/>
                 </footer>
-            </form></field>
+            </form>
+        </field>
     </record>
 </odoo>

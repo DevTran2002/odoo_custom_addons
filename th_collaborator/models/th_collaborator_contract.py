@@ -11,20 +11,12 @@ from odoo.fields import Command
 
 _logger = logging.getLogger(__name__)
 
-TH_CONTRACT_ALLOWED_EXTENSIONS = ('.pdf', '.jpg', '.jpeg', '.png')
-
-
 class ThCollaboratorContract(models.Model):
     """Quản lý hợp đồng và tài liệu đính kèm của Cộng tác viên."""
     _name = 'th.collaborator.contract'
     _description = 'Hợp đồng cộng tác viên'
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'id desc'
-
-    @api.model
-    def _default_user_id(self):
-        """Mặc định người phụ trách hợp đồng là người dùng hiện tại."""
-        return self.env.user
 
     def th_default_access_token(self):
         """Sinh token ngẫu nhiên cho link upload công khai của Hợp đồng."""
@@ -714,12 +706,8 @@ class ThCollaboratorContract(models.Model):
             template = self.env['mail.template'].browse(int(template_id)).exists()
             if template:
                 return template
-        template = self.env.ref(
+        return self.env.ref(
             'th_collaborator.th_collaborator_profile_send_mail_template', raise_if_not_found=False)
-        if not template:
-            template = self.env.ref(
-                'th_collaborator.th_collaborator_profile_upload_mail_template', raise_if_not_found=False)
-        return template
 
     @api.model
     def _get_contract_reminder_mail_template(self):
@@ -872,7 +860,6 @@ class ThCollaboratorContract(models.Model):
         if not default_template:
             raise UserError(_('Không tìm thấy mẫu email gửi hợp đồng.'))
 
-        # Tự động lọc và bảo vệ: Bỏ qua các hợp đồng không hợp lệ (đã hoàn tất, đã hủy, đã nộp hoặc đã gửi mail)
         skipped_records = []
         processable_records = self.env['th.collaborator.contract']
 
@@ -1060,10 +1047,9 @@ class ThCollaboratorContract(models.Model):
         if not attachments:
             raise UserError(_('Hợp đồng "%s" chưa có file để tải về.') % contract.name)
 
-        stt_val = contract.th_collaborator_id.th_sequence or 1
         return {
             'type': 'ir.actions.act_url',
-            'url': f'/th_collaborator/download_file?contract_id={contract.id}&contract_type={contract_type}&stt={stt_val}',
+            'url': f'/th_collaborator/download_file?contract_id={contract.id}&contract_type={contract_type}',
             'target': 'self',
         }
 
@@ -1090,54 +1076,6 @@ class ThCollaboratorContract(models.Model):
             'view_mode': 'form',
             'target': 'new',
             'context': {
-                'default_th_contract_ids': [Command.set(self.ids)],
-            },
-        }
-
-    def action_open_batch_company_wizard(self):
-        """Mở cửa sổ thao tác tải / nạp hàng loạt cho HĐ công ty."""
-        if not self:
-            raise UserError(_('Vui lòng chọn ít nhất 1 hợp đồng.'))
-        return {
-            'name': _('HĐ Công ty - Tải / Nạp hàng loạt'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'th.collaborator.contract.batch.wizard',
-            'view_mode': 'form',
-            'target': 'new',
-            'context': {
-                'default_th_contract_type': 'company',
-                'default_th_contract_ids': [Command.set(self.ids)],
-            },
-        }
-
-    def action_open_batch_self_wizard(self):
-        """Mở cửa sổ thao tác tải / nạp hàng loạt cho HĐ CTV nộp."""
-        if not self:
-            raise UserError(_('Vui lòng chọn ít nhất 1 hợp đồng.'))
-        return {
-            'name': _('HĐ CTV nộp - Tải / Nạp hàng loạt'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'th.collaborator.contract.batch.wizard',
-            'view_mode': 'form',
-            'target': 'new',
-            'context': {
-                'default_th_contract_type': 'self',
-                'default_th_contract_ids': [Command.set(self.ids)],
-            },
-        }
-
-    def action_open_batch_final_wizard(self):
-        """Mở cửa sổ thao tác tải / nạp hàng loạt cho HĐ hoàn tất đủ 2 chữ ký."""
-        if not self:
-            raise UserError(_('Vui lòng chọn ít nhất 1 hợp đồng.'))
-        return {
-            'name': _('HĐ Hoàn tất - Tải / Nạp hàng loạt'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'th.collaborator.contract.batch.wizard',
-            'view_mode': 'form',
-            'target': 'new',
-            'context': {
-                'default_th_contract_type': 'final',
                 'default_th_contract_ids': [Command.set(self.ids)],
             },
         }
@@ -1260,51 +1198,3 @@ class ThCollaboratorContract(models.Model):
 
         _logger.info('Cron th_cron_send_contract_reminders hoàn thành: %s hợp đồng được nhắc nhở.', reminded_count)
         return True
-
-    def _sync_attachments_to_documents(self):
-        """Đồng bộ chuyển đổi các tệp đính kèm cũ sang bảng danh sách tài liệu hợp đồng."""
-        DocModel = self.env['th.collaborator.contract.document']
-        for rec in self:
-            existing_doc_att_ids = rec.th_document_ids.mapped('th_attachment_id.id')
-            for att in rec.th_company_attachment_ids:
-                if att.id not in existing_doc_att_ids:
-                    DocModel.create({
-                        'name': att.name or _('Bản công ty'),
-                        'th_contract_id': rec.id,
-                        'th_document_type': 'company_signed',
-                        'th_file': att.datas,
-                        'th_file_name': att.name,
-                        'th_attachment_id': att.id,
-                        'th_uploaded_by': 'company',
-                        'th_upload_date': att.create_date or fields.Datetime.now(),
-                        'th_user_id': att.create_uid.id if att.create_uid else self.env.user.id,
-                        'th_notes': _('Đồng bộ từ tệp hợp đồng công ty cũ'),
-                    })
-            for att in rec.th_self_attachment_ids:
-                if att.id not in existing_doc_att_ids:
-                    DocModel.create({
-                        'name': att.name or _('Bản CTV nộp'),
-                        'th_contract_id': rec.id,
-                        'th_document_type': 'ctv_signed',
-                        'th_file': att.datas,
-                        'th_file_name': att.name,
-                        'th_attachment_id': att.id,
-                        'th_uploaded_by': 'ctv',
-                        'th_upload_date': att.create_date or fields.Datetime.now(),
-                        'th_user_id': att.create_uid.id if att.create_uid else self.env.user.id,
-                        'th_notes': _('Đồng bộ từ tệp CTV nộp cũ'),
-                    })
-            if rec.th_final_attachment_id and rec.th_final_attachment_id.id not in existing_doc_att_ids:
-                att = rec.th_final_attachment_id
-                DocModel.create({
-                    'name': att.name or _('Bản hoàn tất đủ 2 chữ ký'),
-                    'th_contract_id': rec.id,
-                    'th_document_type': 'final_signed',
-                    'th_file': att.datas,
-                    'th_file_name': att.name,
-                    'th_attachment_id': att.id,
-                    'th_uploaded_by': 'company',
-                    'th_upload_date': att.create_date or fields.Datetime.now(),
-                    'th_user_id': att.create_uid.id if att.create_uid else self.env.user.id,
-                    'th_notes': _('Đồng bộ từ tệp hoàn tất cũ'),
-                })

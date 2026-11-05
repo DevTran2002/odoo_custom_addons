@@ -3,7 +3,7 @@
     'name': 'TH Collaborator',
     'summary': 'Quản lý thông tin và hợp đồng cộng tác viên (CTV) - Phase 1',
     'author': 'Sonbn, Ngoitv',
-    'version': '16.0.1.6.0',
+    'version': '16.0.1.7.0',
     'license': 'LGPL-3',
     'category': 'Human Resources',
     'depends': ['mail', 'base_setup'],

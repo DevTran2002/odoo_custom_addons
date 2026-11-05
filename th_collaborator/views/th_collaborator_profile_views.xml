@@ -86,7 +86,7 @@
                         </group>
                     </group>
                     <notebook>
-                    <page string="Hợp đồng đã hoàn tất" name="th_completed_contracts">
+                        <page string="Hợp đồng đã hoàn tất" name="th_completed_contracts">
                             <field name="th_completed_contract_ids" readonly="1">
                                 <tree string="Hợp đồng hoàn tất" create="0" delete="0">
                                     <field name="th_code" string="Mã hợp đồng"/>
@@ -94,8 +94,8 @@
                                     <field name="th_contract_type_ids" widget="many2many_tags" options="{'color_field': 'th_color'}"/>
                                     <field name="th_final_file_name" string="Hợp đồng đủ 2 chữ ký"/>
                                     <field name="th_expiration_status" widget="badge" optional="show"
-                                            decoration-danger="th_expiration_status == 'expired'"
-                                            decoration-success="th_expiration_status == 'valid'"/>
+                                           decoration-danger="th_expiration_status == 'expired'"
+                                           decoration-success="th_expiration_status == 'valid'"/>
                                     <field name="date_start" string="Ngày bắt đầu" optional="show"/>
                                     <field name="date_end" string="Ngày kết thúc" optional="show"/>
                                     <button name="th_action_download_final_contracts" type="object" icon="fa-download"
@@ -109,7 +109,7 @@
                         <page string="Hình ảnh định danh" name="th_identification_images">
                             <div class="row g-3 py-2">
                                 <div class="col-md-6">
-                                    <div class="card  rounded shadow-sm">
+                                    <div class="card rounded shadow-sm">
                                         <div class="card-header bg-light py-2 px-3 fw-bold text-dark">
                                             Mặt trước CCCD
                                         </div>
@@ -121,7 +121,7 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="card  rounded shadow-sm">
+                                    <div class="card rounded shadow-sm">
                                         <div class="card-header bg-light py-2 px-3 fw-bold text-dark">
                                             Mặt sau CCCD
                                         </div>
@@ -134,7 +134,6 @@
                                 </div>
                             </div>
                         </page>
-                        
                     </notebook>
                 </sheet>
                 <div class="oe_chatter">

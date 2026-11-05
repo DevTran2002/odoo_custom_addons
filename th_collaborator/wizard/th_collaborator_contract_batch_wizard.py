@@ -72,11 +72,9 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
             for contract in rec.th_contract_ids:
                 if rec.th_contract_type == 'company':
                     if rec.th_action_type == 'download':
-                        # Khi tải ZIP, lấy tất cả tệp do công ty cung cấp
                         if contract._get_company_mail_attachments():
                             has_file_count += 1
                     else:
-                        # Khi nạp hoặc thay thế, kiểm tra theo loại chữ ký số được chọn
                         if rec.th_company_sign_type == 'signed':
                             docs = contract.th_document_ids.filtered(lambda d: d.th_document_type == 'company_signed')
                             if docs or contract.th_company_attachment_ids:
@@ -127,7 +125,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
         if not self.th_contract_ids:
             raise UserError(_('Vui lòng chọn ít nhất 1 hợp đồng.'))
 
-        # Kiểm tra xem có bất kỳ hợp đồng nào có file theo đúng phân loại không
         has_file = False
         for contract in self.th_contract_ids:
             if self.th_contract_type == 'company':
@@ -159,12 +156,10 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
         base_name = os.path.splitext(os.path.basename(file_name))[0].strip()
         Profile = self.env['th.collaborator.profile']
 
-        # 1. Ưu tiên đối chiếu theo cấu trúc chuẩn: [Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng]
         hyphen_parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
         if len(hyphen_parts) >= 2:
             part0 = hyphen_parts[0].lower()
             part1_phone = Profile._normalize_phone(hyphen_parts[1])
-            # Trường hợp 1a: [Mã HĐ] - [SĐT] - ...
             for contract in target_contracts:
                 c_code = (contract.th_code or '').strip().lower()
                 c_phone = contract.th_collaborator_id.th_phone_normalized or ''
@@ -174,7 +169,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                             return contract
                     return contract
 
-            # Trường hợp 1b: [SĐT] - [Mã HĐ] - ... (nếu người dùng đảo vị trí SĐT lên trước)
             part0_phone = Profile._normalize_phone(hyphen_parts[0])
             part1_code = hyphen_parts[1].lower()
             if len(part0_phone) >= 9:
@@ -186,10 +180,8 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                             return contract
                         return contract
 
-        # 2. Phân tách theo các ký tự phân cách thông thường để đối chiếu dự phòng
         tokens = [t.strip() for t in re.split(r'[_\\-\\s.]', base_name) if t.strip()]
 
-        # 2.1. Ưu tiên đối chiếu chính xác theo Mã hợp đồng (th_code)
         for contract in target_contracts:
             if contract.th_code:
                 code_lower = contract.th_code.strip().lower()
@@ -199,7 +191,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                 if code_lower in base_name.lower() and len(code_lower) >= 3:
                     return contract
 
-        # 2.2. Đối chiếu theo Số điện thoại của CTV nếu tên file có chứa SĐT
         for token in tokens:
             normalized = Profile._normalize_phone(token)
             if len(normalized) >= 9:
@@ -208,7 +199,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                 if len(matched_contracts) == 1:
                     return matched_contracts[0]
 
-        # 2.3. Đối chiếu theo Số thứ tự CTV nếu tên file bắt đầu bằng số thứ tự
         first_token = tokens[0] if tokens else ''
         if first_token.isdigit():
             stt_num = int(first_token)
@@ -217,7 +207,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
             if len(matched_contracts) == 1:
                 return matched_contracts[0]
 
-        # 2.4. Đối chiếu theo Tên CTV nếu trong tên file có chứa tên CTV
         for contract in target_contracts:
             ctv_name = (contract.th_collaborator_id.name or '').strip().lower()
             if ctv_name and ctv_name in base_name.lower():
@@ -273,7 +262,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                 type_docs = contract.th_document_ids.filtered(lambda d: d.th_document_type == target_doc_type)
 
                 if self.th_action_type == 'upload':
-                    # Chế độ nạp mới: Không phân biệt có hay chưa, luôn cho phép nạp thêm tệp vào hợp đồng
                     self.env['th.collaborator.contract.document'].sudo().create({
                         'name': att.name,
                         'th_contract_id': contract.id,
@@ -292,7 +280,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                     updated_contracts |= contract
 
                 else:
-                    # Chế độ thay thế: Bắt buộc hợp đồng phải có tệp sẵn thì mới thay thế được
                     if not type_docs:
                         unmatched_errors.append(
                             _('%s: Hợp đồng "%s" chưa có %s để thay thế. Vui lòng chọn thao tác "Nạp tệp lên hàng loạt".') % (
@@ -301,18 +288,15 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                         )
                         continue
 
-                    # 1. Tìm tài liệu có cùng tên file để thay thế chính xác tệp đó
                     same_name_docs = type_docs.filtered(
                         lambda d: d.name == att.name or d.th_file_name == att.name
                     )
                     if same_name_docs:
-                        # Chỉ thay thế tệp cùng tên có thời gian tải lên gần nhất (tải lên sau cùng)
                         target_doc = same_name_docs.sorted(
                             key=lambda d: (d.th_upload_date or fields.Datetime.now(), d.id),
                             reverse=True
                         )[0]
                         old_att = target_doc.th_attachment_id
-                        # sudo: Ghi đè thông tin tài liệu hợp đồng nội bộ
                         target_doc.sudo().write({
                             'name': att.name,
                             'th_document_type': target_doc_type,
@@ -324,21 +308,16 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                             'th_user_id': self.env.user.id,
                             'th_notes': _('Thay thế tệp %s qua thao tác hàng loạt') % doc_type_label,
                         })
-                        # Giữ nguyên vẹn toàn bộ các tệp cùng tên khác đã tải lên trước đó, không xóa
                         if old_att and old_att.id != att.id:
                             other_using_old = contract.th_document_ids.filtered(
                                 lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
                             )
                             if not other_using_old:
-                                # sudo: Dọn dẹp tệp attachment cũ nếu không còn tài liệu nào khác tham chiếu
                                 old_att.sudo().unlink()
                     else:
-                        # Nếu không có tệp trùng tên:
-                        # Nếu hợp đồng chỉ có duy nhất 1 tệp thuộc phân loại này thì thay thế tệp đó
                         if len(type_docs) == 1:
                             target_doc = type_docs[0]
                             old_att = target_doc.th_attachment_id
-                            # sudo: Ghi đè thông tin tài liệu hợp đồng nội bộ
                             target_doc.sudo().write({
                                 'name': att.name,
                                 'th_document_type': target_doc_type,
@@ -355,7 +334,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                                     lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
                                 )
                                 if not other_using_old:
-                                    # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
                                     old_att.sudo().unlink()
                         else:
                             unmatched_errors.append(
@@ -365,7 +343,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                             )
                             continue
 
-                    # Cập nhật th_company_attachment_ids an toàn: thêm attachment mới và chỉ gỡ attachment cũ nếu không còn tài liệu nào dùng
                     if target_doc_type == 'company_signed':
                         commands = [Command.link(att.id)]
                         if old_att and old_att.id != att.id:
@@ -386,7 +363,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                 existing_docs = contract.th_document_ids.filtered(lambda d: d.th_document_type in ('ctv_signed', 'ctv_digital_signed'))
 
                 if self.th_action_type == 'upload':
-                    # Chế độ nạp mới: Không phân biệt có hay chưa, luôn cho phép nạp thêm tệp CTV nộp
                     self.env['th.collaborator.contract.document'].sudo().create({
                         'name': att.name,
                         'th_contract_id': contract.id,
@@ -408,7 +384,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                     updated_contracts |= contract
 
                 else:
-                    # Chế độ thay thế: Bắt buộc hợp đồng phải có tệp CTV nộp sẵn thì mới thay thế được
                     if not existing_docs:
                         unmatched_errors.append(
                             _('%s: Hợp đồng "%s" chưa có tệp CTV nộp để thay thế. Vui lòng chọn thao tác "Nạp tệp lên hàng loạt".') % (
@@ -421,13 +396,11 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                         lambda d: d.name == att.name or d.th_file_name == att.name
                     )
                     if same_name_docs:
-                        # Chỉ thay thế tệp cùng tên có thời gian tải lên gần nhất (tải lên sau cùng)
                         target_doc = same_name_docs.sorted(
                             key=lambda d: (d.th_upload_date or fields.Datetime.now(), d.id),
                             reverse=True
                         )[0]
                         old_att = target_doc.th_attachment_id
-                        # sudo: Ghi đè thông tin tài liệu CTV nộp
                         target_doc.sudo().write({
                             'name': att.name,
                             'th_document_type': doc_type,
@@ -439,19 +412,16 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                             'th_user_id': self.env.user.id,
                             'th_notes': _('Thay thế tệp CTV nộp qua thao tác hàng loạt'),
                         })
-                        # Giữ nguyên vẹn các tệp cùng tên khác đã tải lên trước đó, không xóa
                         if old_att and old_att.id != att.id:
                             other_using_old = contract.th_document_ids.filtered(
                                 lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
                             )
                             if not other_using_old:
-                                # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
                                 old_att.sudo().unlink()
                     else:
                         if len(existing_docs) == 1:
                             target_doc = existing_docs[0]
                             old_att = target_doc.th_attachment_id
-                            # sudo: Ghi đè thông tin tài liệu CTV nộp
                             target_doc.sudo().write({
                                 'name': att.name,
                                 'th_document_type': doc_type,
@@ -468,7 +438,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                                     lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
                                 )
                                 if not other_using_old:
-                                    # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
                                     old_att.sudo().unlink()
                         else:
                             unmatched_errors.append(
@@ -478,7 +447,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                             )
                             continue
 
-                    # Cập nhật Many2many an toàn: giữ nguyên tệp khác, chỉ gỡ tệp cũ nếu không còn tài liệu nào dùng
                     commands = [Command.link(att.id)]
                     if old_att and old_att.id != att.id:
                         other_using_old = contract.th_document_ids.filtered(
@@ -500,9 +468,7 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                 existing_docs = contract.th_document_ids.filtered(lambda d: d.th_document_type == 'final_signed')
 
                 if self.th_action_type == 'upload':
-                    # Chế độ nạp mới: Luôn cho phép nạp bản hợp đồng 2 chữ ký
                     contract.write({'th_final_attachment_id': att.id})
-                    # sudo: Tạo bản ghi tài liệu hoàn tất 2 chữ ký
                     self.env['th.collaborator.contract.document'].sudo().create({
                         'name': att.name,
                         'th_contract_id': contract.id,
@@ -519,7 +485,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                     updated_contracts |= contract
 
                 else:
-                    # Chế độ thay thế: Bắt buộc phải có tệp sẵn thì mới thay thế được
                     if not existing_docs and not contract.th_final_attachment_id:
                         unmatched_errors.append(
                             _('%s: Hợp đồng "%s" chưa có bản HĐ đủ 2 chữ ký để thay thế. Vui lòng chọn thao tác "Nạp tệp lên hàng loạt".') % (
@@ -530,13 +495,11 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
 
                     contract.write({'th_final_attachment_id': att.id})
                     if existing_docs:
-                        # Chỉ thay thế tệp hoàn tất có thời gian tải lên gần nhất (tải lên sau cùng)
                         target_doc = existing_docs.sorted(
                             key=lambda d: (d.th_upload_date or fields.Datetime.now(), d.id),
                             reverse=True
                         )[0]
                         old_att = target_doc.th_attachment_id
-                        # sudo: Ghi đè thông tin tài liệu hoàn tất 2 chữ ký
                         target_doc.sudo().write({
                             'name': att.name,
                             'th_document_type': 'final_signed',
@@ -553,10 +516,8 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                                 lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
                             )
                             if not other_using_old:
-                                # sudo: Dọn dẹp tệp attachment cũ không còn sử dụng
                                 old_att.sudo().unlink()
                     else:
-                        # sudo: Tạo bản ghi tài liệu hoàn tất 2 chữ ký
                         self.env['th.collaborator.contract.document'].sudo().create({
                             'name': att.name,
                             'th_contract_id': contract.id,
@@ -572,7 +533,6 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
                     contract.message_post(body=_('Đã thay thế bản HĐ đủ 2 chữ ký [%s] qua thao tác hàng loạt.') % att.name)
                     updated_contracts |= contract
 
-        # Dọn dẹp các tệp đính kèm tạm thời liên kết với wizard
         self.th_attachment_ids.filtered(lambda a: a.res_model == self._name).unlink()
 
         action_verb = _('Thay thế') if self.th_action_type == 'replace' else _('Nạp')
