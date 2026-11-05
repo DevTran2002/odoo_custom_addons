@@ -13,9 +13,11 @@
                 <field name="th_email"/>
                 <field name="th_email_cc" optional="hide"/>
                 <field name="th_identification_id" optional="show"/>
+                <field name="th_permanent_address" optional="hide"/>
                 <field name="th_tax_code" optional="show"/>
                 <field name="th_bank_account_number" optional="show"/>
                 <field name="th_bank_name" optional="hide"/>
+                <field name="th_bank_branch" optional="hide"/>
                 <field name="th_birthday" optional="hide"/>
                 <field name="user_id" widget="many2one_avatar_user"/>
                 <field name="th_contract_count" string="Tổng số HĐ"/>
@@ -54,6 +56,7 @@
                         </button>
                     </div>
                     <field name="th_mail_failed_count" invisible="1"/>
+                    <field name="th_portrait_image" widget="image" class="oe_avatar"/>
                     <div class="oe_title">
                         <label for="name" class="oe_edit_only"/>
                         <h1><field name="name" placeholder="Họ và tên CTV" required="1"/></h1>
@@ -73,15 +76,17 @@
                             <field name="th_identification_id" required="1"/>
                             <field name="th_id_issue_date" required="1"/>
                             <field name="th_id_issue_place" required="1"/>
+                            <field name="th_permanent_address"/>
                             <field name="th_tax_code" required="1"/>
                         </group>
                         <group string="Tài khoản ngân hàng">
                             <field name="th_bank_account_number" required="1"/>
                             <field name="th_bank_name" required="1"/>
+                            <field name="th_bank_branch"/>
                         </group>
                     </group>
                     <notebook>
-                        <page string="Hợp đồng đã hoàn tất" name="th_completed_contracts">
+                    <page string="Hợp đồng đã hoàn tất" name="th_completed_contracts">
                             <field name="th_completed_contract_ids" readonly="1">
                                 <tree string="Hợp đồng hoàn tất" create="0" delete="0">
                                     <field name="th_code" string="Mã hợp đồng"/>
@@ -101,6 +106,35 @@
                                 </tree>
                             </field>
                         </page>
+                        <page string="Hình ảnh định danh" name="th_identification_images">
+                            <div class="row g-3 py-2">
+                                <div class="col-md-6">
+                                    <div class="card  rounded shadow-sm">
+                                        <div class="card-header bg-light py-2 px-3 fw-bold text-dark">
+                                            Mặt trước CCCD
+                                        </div>
+                                        <div class="card-body p-2 bg-white">
+                                            <div class="th_id_image_box">
+                                                <field name="th_id_front_image" widget="image" options="{'size': [520, 330], 'zoom': true}" nolabel="1"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card  rounded shadow-sm">
+                                        <div class="card-header bg-light py-2 px-3 fw-bold text-dark">
+                                            Mặt sau CCCD
+                                        </div>
+                                        <div class="card-body p-2 bg-white">
+                                            <div class="th_id_image_box">
+                                                <field name="th_id_back_image" widget="image" options="{'size': [520, 330], 'zoom': true}" nolabel="1"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </page>
+                        
                     </notebook>
                 </sheet>
                 <div class="oe_chatter">
@@ -124,8 +158,11 @@
                 <field name="th_email"/>
                 <field name="th_email_cc" optional="hide"/>
                 <field name="th_identification_id"/>
+                <field name="th_permanent_address"/>
                 <field name="th_tax_code"/>
                 <field name="th_bank_account_number"/>
+                <field name="th_bank_name"/>
+                <field name="th_bank_branch"/>
                 <field name="user_id"/>
                 <filter name="th_filter_my" string="CTV của tôi" domain="[('user_id', '=', uid)]"/>
                 <group expand="0" string="Nhóm theo">

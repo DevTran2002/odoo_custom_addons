@@ -123,17 +123,25 @@ class ThCollaboratorContract(models.Model):
 
     th_is_readonly = fields.Boolean(
         string='Khóa chỉnh sửa', compute='_compute_is_readonly')
+    th_is_info_readonly = fields.Boolean(
+        string='Khóa thông tin nghiệp vụ', compute='_compute_is_info_readonly')
 
     _sql_constraints = [
         ('th_code_uniq', 'unique(th_code)', 'Mã hợp đồng đã tồn tại trong hệ thống. Vui lòng chọn mã khác.'),
         ('th_contract_access_token_uniq', 'unique(th_access_token)', 'Token upload của hợp đồng bị trùng.'),
     ]
 
-    @api.depends('state', 'th_is_expired')
+    @api.depends('state')
     def _compute_is_readonly(self):
-        """Khóa chỉnh sửa khi hợp đồng ở trạng thái Hoàn tất, Đã hủy hoặc đã Hết hạn."""
+        """Khóa thao tác khi hợp đồng ở trạng thái Hoàn tất hoặc Đã hủy."""
         for rec in self:
-            rec.th_is_readonly = bool(rec.state in ('close', 'cancel') or rec.th_is_expired)
+            rec.th_is_readonly = bool(rec.state in ('close', 'cancel'))
+
+    @api.depends('state')
+    def _compute_is_info_readonly(self):
+        """Khóa chỉnh sửa thông tin khi hợp đồng đã chuyển sang kiểm duyệt HCNS hoặc đã Hoàn tất."""
+        for rec in self:
+            rec.th_is_info_readonly = bool(rec.state != 'draft')
 
     def _add_sql_constraints(self):
         """Khởi tạo token upload ngẫu nhiên duy nhất cho các bản ghi cũ trước khi gán ràng buộc unique."""
@@ -256,9 +264,9 @@ class ThCollaboratorContract(models.Model):
         }
         if any(f in vals for f in business_fields):
             for rec in self:
-                if rec.th_is_readonly:
+                if rec.th_is_info_readonly:
                     raise UserError(
-                        _('Hợp đồng "%s" đã ở trạng thái Hoàn tất hoặc đã Hết hạn, thông tin đã bị khóa không thể chỉnh sửa.')
+                        _('Hợp đồng "%s" đã chuyển sang bước kiểm duyệt hoặc đã Hoàn tất, thông tin đã bị khóa không thể chỉnh sửa.')
                         % rec.name
                     )
 
@@ -272,11 +280,6 @@ class ThCollaboratorContract(models.Model):
                 if current_state == 'close':
                     raise UserError(
                         _('Hợp đồng "%s" đã ở trạng thái Hoàn tất, không thể thay đổi trạng thái.')
-                        % rec.name
-                    )
-                if rec.th_is_expired and new_state != current_state:
-                    raise UserError(
-                        _('Hợp đồng "%s" đã hết hạn hiệu lực, không thể chuyển đổi trạng thái.')
                         % rec.name
                     )
 

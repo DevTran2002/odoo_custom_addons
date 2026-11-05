@@ -183,6 +183,7 @@
                 </header>
                 <sheet>
                     <field name="th_is_readonly" invisible="1"/>
+                    <field name="th_is_info_readonly" invisible="1"/>
                     <style>
                         .ribbon {
                             margin-top: 21px !important;
@@ -220,32 +221,32 @@
                         <label for="th_code" class="oe_edit_only"/>
                         <h2>
                             <field name="th_code" placeholder="Mã hợp đồng" required="1"
-                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
+                                   attrs="{'readonly': [('th_is_info_readonly', '=', True)]}"/>
                         </h2>
                         <label for="name" class="oe_edit_only"/>
                         <h1>
                             <field name="name" placeholder="Tên hợp đồng" required="1"
-                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
+                                   attrs="{'readonly': [('th_is_info_readonly', '=', True)]}"/>
                         </h1>
                     </div>
                     <group>
                         <group>
                             <field name="th_collaborator_id" options="{'no_open': True, 'no_create': True, 'no_create_edit': True}" required="1"
-                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
+                                   attrs="{'readonly': [('th_is_info_readonly', '=', True)]}"/>
                             <field name="th_phone" widget="phone"/>
                             <field name="th_email" widget="email"/>
                             <field name="th_email_cc" widget="email"/>
                             <field name="th_contract_type_ids" widget="many2many_tags"
                                    options="{'no_open': True, 'no_create': True, 'no_create_edit': True}" required="1"
-                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
+                                   attrs="{'readonly': [('th_is_info_readonly', '=', True)]}"/>
                             <field name="th_batch_date" required="1"
-                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
+                                   attrs="{'readonly': [('th_is_info_readonly', '=', True)]}"/>
                         </group>
                         <group>
                             <field name="date_start" required="1"
-                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
+                                   attrs="{'readonly': [('th_is_info_readonly', '=', True)]}"/>
                             <field name="date_end" required="1"
-                                   attrs="{'readonly': [('th_is_readonly', '=', True)]}"/>
+                                   attrs="{'readonly': [('th_is_info_readonly', '=', True)]}"/>
                             <field name="th_expiration_status"/>
                             <field name="th_is_signed" readonly="1"/>
                             <field name="th_mail_sent_date" readonly="1"/>

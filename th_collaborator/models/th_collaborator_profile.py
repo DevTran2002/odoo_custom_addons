@@ -54,10 +54,21 @@ class ThCollaboratorProfile(models.Model):
     th_identification_id = fields.Char(string='Số CCCD', index=True, tracking=True)
     th_id_issue_date = fields.Date(string='Ngày cấp CCCD', tracking=True)
     th_id_issue_place = fields.Char(string='Nơi cấp CCCD', tracking=True)
+    th_permanent_address = fields.Char(
+        string='Địa chỉ thường trú', tracking=True,
+        help='Lấy theo thông tin trên VNeID hoặc eTax mobile')
     th_tax_code = fields.Char(string='Mã số thuế', tracking=True)
 
     th_bank_account_number = fields.Char(string='Số tài khoản ngân hàng', tracking=True)
-    th_bank_name = fields.Char(string='Ngân hàng / Chi nhánh', tracking=True)
+    th_bank_name = fields.Char(string='Tại ngân hàng', tracking=True)
+    th_bank_branch = fields.Char(string='Chi nhánh ngân hàng', tracking=True)
+
+    th_id_front_image = fields.Binary(
+        string='Ảnh mặt trước CCCD', attachment=True)
+    th_id_back_image = fields.Binary(
+        string='Ảnh mặt sau CCCD', attachment=True)
+    th_portrait_image = fields.Binary(
+        string='Ảnh chân dung 3x4 (ảnh chụp trong vòng 6 tháng)', attachment=True)
 
     th_contract_ids = fields.One2many(
         'th.collaborator.contract', 'th_collaborator_id', string='Danh sách hợp đồng')

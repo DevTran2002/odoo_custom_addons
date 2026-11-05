@@ -13,7 +13,7 @@ from odoo.addons.th_collaborator.models.th_collaborator_profile import TH_CONTRA
 _logger = logging.getLogger(__name__)
 
 TH_UPLOAD_MAX_FILES = 10
-TH_UPLOAD_MAX_FILE_SIZE = 20 * 1024 * 1024
+TH_UPLOAD_MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 class ThCollaboratorController(http.Controller):
@@ -66,8 +66,10 @@ class ThCollaboratorController(http.Controller):
         }
         if contract.state in ('close', 'cancel'):
             values['error'] = _('Hợp đồng này đã hoàn tất hoặc đã hủy, cổng tiếp nhận tệp đã đóng.')
-        elif contract.th_is_expired:
-            values['error'] = _('Hợp đồng này đã hết hạn hiệu lực, cổng tiếp nhận tệp đã đóng.')
+        elif contract.state in ('submitted', 'pending_sign'):
+            values['error'] = _('Hợp đồng đã được nộp và đang trong quá trình kiểm duyệt, cổng tiếp nhận tệp đã khóa.')
+        elif contract.state in ('draft', 'legal_review'):
+            values['error'] = _('Hợp đồng đang trong quá trình soạn thảo hoặc kiểm duyệt nội bộ, cổng tiếp nhận tệp chưa mở.')
         return self._render_upload_page(values)
 
     @http.route('/th_collaborator/upload/<string:token>/submit', type='http', auth='public', website=True, methods=['POST'])
@@ -85,10 +87,13 @@ class ThCollaboratorController(http.Controller):
         }
 
         if contract.state in ('close', 'cancel'):
-            values['error'] = _('Hợp đồng này đã kết thúc hoặc đã hủy, cổng tiếp nhận đã đóng.')
+            values['error'] = _('Hợp đồng này đã hoàn tất hoặc đã hủy, cổng tiếp nhận đã đóng.')
             return self._render_upload_page(values)
-        if contract.th_is_expired:
-            values['error'] = _('Hợp đồng này đã hết hạn hiệu lực, không thể tiếp nhận thêm tệp.')
+        if contract.state in ('submitted', 'pending_sign'):
+            values['error'] = _('Hợp đồng đã được nộp và đang trong quá trình kiểm duyệt, không thể tiếp nhận thêm tệp.')
+            return self._render_upload_page(values)
+        if contract.state in ('draft', 'legal_review'):
+            values['error'] = _('Hợp đồng đang trong quá trình soạn thảo hoặc kiểm duyệt nội bộ, không thể tiếp nhận tệp.')
             return self._render_upload_page(values)
 
         files, error = self._read_uploaded_files()
