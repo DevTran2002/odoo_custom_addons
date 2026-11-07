@@ -226,9 +226,9 @@
                         <group>
                             <field name="th_collaborator_id" options="{'no_open': True, 'no_create': True, 'no_create_edit': True}" required="1"
                                    attrs="{'readonly': [('th_is_info_readonly', '=', True)]}"/>
-                            <field name="th_phone" widget="phone"/>
-                            <field name="th_email" widget="email"/>
-                            <field name="th_email_cc" widget="email"/>
+                            <field name="th_phone" widget="phone" force_save="1" readonly="1"/>
+                            <field name="th_email" widget="email" force_save="1" readonly="1"/>
+                            <field name="th_email_cc" widget="email" force_save="1" readonly="1"/>
                             <field name="th_contract_type_ids" widget="many2many_tags"
                                    options="{'no_open': True, 'no_create': True, 'no_create_edit': True}" required="1"
                                    attrs="{'readonly': [('th_is_info_readonly', '=', True)]}"/>

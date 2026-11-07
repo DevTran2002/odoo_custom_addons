@@ -130,7 +130,7 @@ class ThCollaboratorProfile(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
-        """Cập nhật hồ sơ CTV, chỉ cho phép Quản lý thay đổi Người phụ trách."""
+        """Cập nhật hồ sơ CTV, chỉ cho phép Quản lý thay đổi Người phụ trách và đồng bộ thông tin sang hợp đồng chưa duyệt."""
         if 'user_id' in vals:
             is_manager = self.env.user.has_group('th_collaborator.th_role_collaborator_manager') or self.env.is_superuser() or self.env.su
             if not is_manager:
@@ -138,7 +138,30 @@ class ThCollaboratorProfile(models.Model):
                     new_user_id = vals.get('user_id')
                     if new_user_id != rec.user_id.id:
                         raise UserError(_('Chỉ người dùng có quyền Quản lý mới được phép thay đổi Người phụ trách CTV.'))
-        return super().write(vals)
+        res = super().write(vals)
+
+        # Đồng bộ thông tin liên hệ (SĐT, Email, Email CC) sang các hợp đồng chưa được duyệt pháp chế
+        contact_fields = {'th_phone', 'th_email', 'th_email_cc'}
+        changed_contacts = contact_fields.intersection(vals.keys())
+        if changed_contacts:
+            for profile in self:
+                # Chỉ cập nhật các hợp đồng đang ở trạng thái Dự thảo hoặc Chờ duyệt
+                # Tuyệt đối không thay đổi trên các hợp đồng đã được Pháp chế phê duyệt (approved, sent, submitted, pending_sign, close, cancel...)
+                unapproved_contracts = self.env['th.collaborator.contract'].search([
+                    ('th_collaborator_id', '=', profile.id),
+                    ('state', 'in', ('draft', 'legal_review')),
+                ])
+                if unapproved_contracts:
+                    contract_vals = {}
+                    if 'th_phone' in changed_contacts:
+                        contract_vals['th_phone'] = profile.th_phone
+                    if 'th_email' in changed_contacts:
+                        contract_vals['th_email'] = profile.th_email
+                    if 'th_email_cc' in changed_contacts:
+                        contract_vals['th_email_cc'] = profile.th_email_cc
+                    if contract_vals:
+                        unapproved_contracts.write(contract_vals)
+        return res
 
     def action_open_collaborator_contracts(self):
         """Mở danh sách hợp đồng thuộc CTV hiện tại."""

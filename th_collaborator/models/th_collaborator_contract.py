@@ -39,11 +39,11 @@ class ThCollaboratorContract(models.Model):
         related='th_collaborator_id.user_id',
         store=True, readonly=True, index=True)
     th_phone = fields.Char(
-        string='Số điện thoại', related='th_collaborator_id.th_phone', store=True, readonly=True)
+        string='Số điện thoại', store=True, readonly=True, tracking=True)
     th_email = fields.Char(
-        string='Email', related='th_collaborator_id.th_email', store=True, readonly=True)
+        string='Email', store=True, readonly=True, tracking=True)
     th_email_cc = fields.Char(
-        string='Email CC', related='th_collaborator_id.th_email_cc', store=True, readonly=True)
+        string='Email CC', store=True, readonly=True, tracking=True)
     th_batch_date = fields.Date(
         string='Ngày đẩy hợp đồng', required=True, default=fields.Date.context_today, index=True, tracking=True)
     th_contract_type_ids = fields.Many2many(
@@ -238,18 +238,38 @@ class ThCollaboratorContract(models.Model):
         if self.th_collaborator_id and self.th_collaborator_id.user_id:
             self.user_id = self.th_collaborator_id.user_id
 
+
+    @api.onchange('th_collaborator_id')
+    def _onchange_collaborator_id_sync_contact(self):
+        """Hiển thị tức thì SĐT, Email, Email CC từ hồ sơ CTV khi chọn CTV trên giao diện hợp đồng (chỉ ở Dự thảo hoặc Chờ duyệt)."""
+        if self.th_collaborator_id and self.state in ('draft', 'legal_review'):
+            self.th_phone = self.th_collaborator_id.th_phone
+            self.th_email = self.th_collaborator_id.th_email
+            self.th_email_cc = self.th_collaborator_id.th_email_cc
+
     @api.model_create_multi
     def create(self, vals_list):
-        """Tạo hợp đồng mới, tự động khởi tạo token upload và gắn file đính kèm."""
+        """Tạo hợp đồng mới, tự động khởi tạo token upload, gắn file đính kèm và chốt thông tin liên hệ ban đầu."""
         for vals in vals_list:
             if not vals.get('th_access_token'):
                 vals['th_access_token'] = self.th_default_access_token()
+            # Tự động sao chép thông tin liên hệ từ hồ sơ CTV khi tạo mới hợp đồng
+            if vals.get('th_collaborator_id'):
+                profile = self.env['th.collaborator.profile'].browse(vals['th_collaborator_id'])
+                if profile.exists():
+                    if 'th_phone' not in vals:
+                        vals['th_phone'] = profile.th_phone
+                    if 'th_email' not in vals:
+                        vals['th_email'] = profile.th_email
+                    if 'th_email_cc' not in vals:
+                        vals['th_email_cc'] = profile.th_email_cc
         records = super().create(vals_list)
         records._link_contract_attachments()
         return records
 
     def write(self, vals):
         """Cập nhật hợp đồng và kiểm soát các ràng buộc điều kiện khi chuyển trạng thái."""
+        contact_fields = {'th_phone', 'th_email', 'th_email_cc'}
         business_fields = {
             'name', 'th_code', 'th_collaborator_id', 'user_id',
             'th_batch_date', 'th_contract_type_ids', 'date_start', 'date_end',
@@ -263,6 +283,31 @@ class ThCollaboratorContract(models.Model):
                     )
 
         new_state = vals.get('state')
+
+        # Khóa cứng không cho thay đổi thông tin liên hệ trên hợp đồng đã được pháp chế phê duyệt
+        if contact_fields.intersection(vals.keys()):
+            for rec in self:
+                if rec.state not in ('draft', 'legal_review') and new_state != 'approved':
+                    if not self.env.is_superuser():
+                        for f in contact_fields.intersection(vals.keys()):
+                            if vals[f] != getattr(rec, f):
+                                state_label = dict(rec._fields['state'].selection).get(rec.state, rec.state)
+                                raise UserError(
+                                    _('Hợp đồng "%s" đã được phê duyệt pháp chế (trạng thái: %s). Thông tin liên hệ (SĐT, Email, Email CC) đã được chốt và khóa cố định theo hợp đồng.')
+                                    % (rec.name, state_label)
+                                )
+
+        # Nếu thay đổi CTV ở trạng thái Dự thảo hoặc Chờ duyệt, tự động cập nhật lại thông tin liên hệ
+        if 'th_collaborator_id' in vals and vals['th_collaborator_id']:
+            new_collab = self.env['th.collaborator.profile'].browse(vals['th_collaborator_id'])
+            for rec in self:
+                if rec.state in ('draft', 'legal_review'):
+                    if 'th_phone' not in vals:
+                        vals['th_phone'] = new_collab.th_phone
+                    if 'th_email' not in vals:
+                        vals['th_email'] = new_collab.th_email
+                    if 'th_email_cc' not in vals:
+                        vals['th_email_cc'] = new_collab.th_email_cc
         if new_state:
             for rec in self:
                 current_state = rec.state
@@ -296,6 +341,13 @@ class ThCollaboratorContract(models.Model):
                         raise UserError(
                             _('Chỉ Nhân viên pháp chế, Quản lý hoặc Quản trị viên mới có quyền phê duyệt kiểm duyệt hợp đồng.')
                         )
+                    # Chốt và khóa snapshot thông tin liên hệ tại thời điểm pháp chế phê duyệt
+                    if not rec.th_phone and rec.th_collaborator_id.th_phone:
+                        vals.setdefault('th_phone', rec.th_collaborator_id.th_phone)
+                    if not rec.th_email and rec.th_collaborator_id.th_email:
+                        vals.setdefault('th_email', rec.th_collaborator_id.th_email)
+                    if not rec.th_email_cc and rec.th_collaborator_id.th_email_cc:
+                        vals.setdefault('th_email_cc', rec.th_collaborator_id.th_email_cc)
 
                 elif new_state == 'sent':
                     if current_state not in ('approved', 'sent', 'mail_error'):
@@ -430,8 +482,18 @@ class ThCollaboratorContract(models.Model):
                 raise UserError(_('Hợp đồng "%s" đã khóa, không thể phê duyệt.') % rec.name)
             if rec.state != 'legal_review':
                 raise UserError(_('Hợp đồng "%s" không ở trạng thái "Chờ duyệt".') % rec.name)
-            rec.write({'state': 'approved'})
-            rec.message_post(body=_('Bộ phận Pháp chế (%s) đã chấp nhận duyệt hợp đồng. Hợp đồng sẵn sàng gửi email cho CTV.') % self.env.user.name)
+            # Chốt và khóa snapshot thông tin liên hệ tại thời điểm pháp chế duyệt
+            approve_vals = {'state': 'approved'}
+            if not rec.th_phone and rec.th_collaborator_id.th_phone:
+                approve_vals['th_phone'] = rec.th_collaborator_id.th_phone
+            if not rec.th_email and rec.th_collaborator_id.th_email:
+                approve_vals['th_email'] = rec.th_collaborator_id.th_email
+            if not rec.th_email_cc and rec.th_collaborator_id.th_email_cc:
+                approve_vals['th_email_cc'] = rec.th_collaborator_id.th_email_cc
+            rec.write(approve_vals)
+            rec.message_post(body=_('Bộ phận Pháp chế (%s) đã chấp nhận duyệt hợp đồng. Thông tin liên hệ tại thời điểm duyệt (SĐT: %s, Email: %s, Email CC: %s) đã được chốt và khóa cố định theo hợp đồng.') % (
+                self.env.user.name, rec.th_phone or '', rec.th_email or '', rec.th_email_cc or _('Không có')
+            ))
 
     def action_legal_approve_batch(self):
         """Duyệt hàng loạt hợp đồng đang ở trạng thái Chờ duyệt."""
@@ -441,8 +503,15 @@ class ThCollaboratorContract(models.Model):
         if not valid_contracts:
             raise UserError(_('Không có hợp đồng nào ở trạng thái "Chờ duyệt" hợp lệ để phê duyệt.'))
         for rec in valid_contracts:
-            rec.write({'state': 'approved'})
-            rec.message_post(body=_('Bộ phận Pháp chế (%s) đã chấp nhận duyệt hàng loạt hợp đồng đạt yêu cầu.') % self.env.user.name)
+            approve_vals = {'state': 'approved'}
+            if not rec.th_phone and rec.th_collaborator_id.th_phone:
+                approve_vals['th_phone'] = rec.th_collaborator_id.th_phone
+            if not rec.th_email and rec.th_collaborator_id.th_email:
+                approve_vals['th_email'] = rec.th_collaborator_id.th_email
+            if not rec.th_email_cc and rec.th_collaborator_id.th_email_cc:
+                approve_vals['th_email_cc'] = rec.th_collaborator_id.th_email_cc
+            rec.write(approve_vals)
+            rec.message_post(body=_('Bộ phận Pháp chế (%s) đã chấp nhận duyệt hàng loạt hợp đồng đạt yêu cầu. Thông tin liên hệ đã được chốt và khóa cố định theo hợp đồng.') % self.env.user.name)
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -732,11 +801,13 @@ class ThCollaboratorContract(models.Model):
         return attachments
 
     def _get_contract_mail_cc(self, include_officer=False):
-        """Lấy danh sách địa chỉ email CC từ hồ sơ CTV (kèm email người phụ trách nếu cần)."""
+        """Lấy danh sách địa chỉ email CC từ hợp đồng (kèm email người phụ trách nếu cần)."""
         self.ensure_one()
         cc_list = []
-        if self.th_collaborator_id.th_email_cc:
-            raw_ccs = [e.strip() for e in self.th_collaborator_id.th_email_cc.replace(';', ',').split(',') if e.strip()]
+        # Ưu tiên lấy email CC lưu trên hợp đồng (đã chốt khi duyệt), nếu chưa có thì lấy từ hồ sơ CTV
+        email_cc = self.th_email_cc or self.th_collaborator_id.th_email_cc
+        if email_cc:
+            raw_ccs = [e.strip() for e in email_cc.replace(';', ',').split(',') if e.strip()]
             cc_list.extend(raw_ccs)
         if include_officer and self.user_id.email:
             if self.user_id.email not in cc_list:
