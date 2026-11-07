@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="0">
-        <!-- ========================================== -->
-        <!-- QUY TẮC BẢN GHI: HỒ SƠ CỘNG TÁC VIÊN      -->
-        <!-- ========================================== -->
         <!-- Nhân viên: Chỉ xem và thao tác trên CTV do mình phụ trách -->
         <record id="th_collaborator_profile_officer_rule" model="ir.rule">
             <field name="name">Cộng tác viên: Nhân viên chỉ xem hồ sơ phụ trách</field>
@@ -28,9 +25,6 @@
             <field name="perm_unlink" eval="1"/>
         </record>
 
-        <!-- ========================================== -->
-        <!-- QUY TẮC BẢN GHI: HỢP ĐỒNG CỘNG TÁC VIÊN    -->
-        <!-- ========================================== -->
         <!-- Nhân viên: Chỉ xem và thao tác trên hợp đồng của CTV do mình phụ trách -->
         <record id="th_collaborator_contract_officer_rule" model="ir.rule">
             <field name="name">Hợp đồng: Nhân viên chỉ xem hợp đồng của CTV phụ trách</field>
@@ -55,9 +49,6 @@
             <field name="perm_unlink" eval="1"/>
         </record>
 
-        <!-- ========================================== -->
-        <!-- QUY TẮC BẢN GHI: TỆP ĐÍNH KÈM HỢP ĐỒNG     -->
-        <!-- ========================================== -->
         <!-- Nhân viên: Chỉ xem tệp thuộc hợp đồng của CTV mình phụ trách -->
         <record id="th_collaborator_contract_document_officer_rule" model="ir.rule">
             <field name="name">Tệp hợp đồng: Nhân viên chỉ xem tệp của CTV phụ trách</field>
@@ -82,9 +73,6 @@
             <field name="perm_unlink" eval="1"/>
         </record>
 
-        <!-- ========================================== -->
-        <!-- QUY TẮC BẢN GHI: LỊCH SỬ MAIL ĐÃ GỬI       -->
-        <!-- ========================================== -->
         <!-- Nhân viên: Chỉ xem mail thuộc hợp đồng của CTV mình phụ trách -->
         <record id="th_collaborator_mail_sent_officer_rule" model="ir.rule">
             <field name="name">Mail đã gửi: Nhân viên chỉ xem mail của CTV phụ trách</field>

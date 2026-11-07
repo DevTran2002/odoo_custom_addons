@@ -3,7 +3,7 @@ import logging
 import re
 
 from odoo import _, api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tools import email_normalize
 from odoo.tools.mimetypes import guess_mimetype
 
@@ -113,6 +113,32 @@ class ThCollaboratorProfile(models.Model):
         for rec in self:
             if rec.th_phone and len(rec.th_phone_normalized or '') < 9:
                 raise ValidationError(_('Số điện thoại "%s" không hợp lệ.') % rec.th_phone)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Khởi tạo hồ sơ CTV, đảm bảo chỉ Quản lý mới được chỉ định người phụ trách khác."""
+        is_manager = self.env.user.has_group('th_collaborator.th_role_collaborator_manager') or self.env.is_superuser() or self.env.su
+        if not is_manager:
+            current_user_id = self.env.user.id
+            for vals in vals_list:
+                # Nếu không phải Quản lý và chỉ định người phụ trách khác tài khoản hiện tại
+                if 'user_id' in vals and vals.get('user_id') and vals.get('user_id') != current_user_id:
+                    raise UserError(_('Chỉ người dùng có quyền Quản lý mới được phép phân công Người phụ trách CTV cho nhân sự khác.'))
+                # Đảm bảo mặc định người phụ trách là tài khoản hiện tại nếu chưa được gán
+                if not vals.get('user_id'):
+                    vals['user_id'] = current_user_id
+        return super().create(vals_list)
+
+    def write(self, vals):
+        """Cập nhật hồ sơ CTV, chỉ cho phép Quản lý thay đổi Người phụ trách."""
+        if 'user_id' in vals:
+            is_manager = self.env.user.has_group('th_collaborator.th_role_collaborator_manager') or self.env.is_superuser() or self.env.su
+            if not is_manager:
+                for rec in self:
+                    new_user_id = vals.get('user_id')
+                    if new_user_id != rec.user_id.id:
+                        raise UserError(_('Chỉ người dùng có quyền Quản lý mới được phép thay đổi Người phụ trách CTV.'))
+        return super().write(vals)
 
     def action_open_collaborator_contracts(self):
         """Mở danh sách hợp đồng thuộc CTV hiện tại."""
