@@ -121,13 +121,10 @@
                 <header>
                     <button name="action_open_upload_document_wizard" type="object"
                             string="Upload hợp đồng" class="oe_highlight" icon="fa-upload"
-                            attrs="{'invisible': ['|', ('state', '!=', 'draft'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '!=', 'Chưa có file')]}"/>
-                    <button name="action_open_upload_document_wizard" type="object"
-                            string="Upload hợp đồng" class="btn-secondary" icon="fa-upload"
-                            attrs="{'invisible': ['|', ('state', '!=', 'draft'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
+                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'legal_review')), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '!=', 'Chưa có file')]}"/>
                     <button name="action_open_upload_document_wizard" type="object"
                             string="Upload bổ sung" class="btn-secondary" icon="fa-upload"
-                            attrs="{'invisible': ['|', ('state', '!=', 'submitted'), ('th_is_readonly', '=', True)]}"/>
+                            attrs="{'invisible': ['|', ('state', 'not in', ('draft', 'legal_review')), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
                     <button name="action_open_upload_document_wizard" type="object"
                             string="Upload bản 2 chữ ký" class="oe_highlight" icon="fa-upload"
                             attrs="{'invisible': ['|', ('state', 'not in', ('submitted', 'pending_sign')), '|', ('th_is_readonly', '=', True), ('th_final_file_name', '!=', 'Chưa có')]}"/>

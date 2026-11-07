@@ -75,7 +75,7 @@
                                    options="{'no_create': True, 'no_create_edit': True}"
                                    groups="th_collaborator.th_role_collaborator_manager"/>
                             <field name="user_id" string="Người phụ trách hợp đồng" readonly="1"
-                                   options="{'no_create': True, 'no_create_edit': True}"
+                                   options="{'no_create': True,'no_open' : True, 'no_create_edit': True}"
                                    groups="!th_collaborator.th_role_collaborator_manager"/>
                             <field name="th_birthday" required="1"/>
                         </group>

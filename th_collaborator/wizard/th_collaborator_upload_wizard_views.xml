@@ -51,13 +51,13 @@
                         </group>
                     </group>
 
-                    <!-- Hướng dẫn cho Chế độ Bổ sung HĐ mới -->
+                    <!-- Hướng dẫn cho Chế độ Bổ sung HĐ -->
                     <div class="alert alert-info mt-2 mb-3" role="alert" attrs="{'invisible': [('th_mode', '!=', 'add')]}">
-                        <div class="fw-bold mb-1 text-primary">HƯỚNG DẪN BỔ SUNG HỢP ĐỒNG MỚI:</div>
+                        <div class="fw-bold mb-1 text-primary">HƯỚNG DẪN BỔ SUNG HỢP ĐỒNG:</div>
                         <ul class="mb-0 ps-3">
                             <li>Quy chuẩn đặt tên tệp: <code>[Mã hợp đồng]-[SĐT]-[Tên CTV]-[Loại hợp đồng].pdf</code> (ví dụ: <code>HD01-0912345678-Nguyen Van A-HopDongGiangDay.pdf</code>).</li>
-                            <li>Hệ thống tự động tạo hợp đồng mới ở trạng thái <em>Dự thảo</em> theo Mã HĐ và SĐT bóc tách từ tên file.</li>
-                            <li>Mã HĐ không được trùng với các hợp đồng đã tồn tại trong hệ thống.</li>
+                            <li>Nếu Mã HĐ đã tồn tại: Chỉ cho phép bổ sung file khi hợp đồng đang ở trạng thái <em>Dự thảo</em> hoặc <em>Chờ pháp chế duyệt</em>. Tuyệt đối không cho phép nạp thêm khi hợp đồng đã duyệt hoặc đã <em>Hoàn tất</em>.</li>
+                            <li>Nếu Mã HĐ chưa có: Hệ thống tự động tạo hợp đồng mới ở trạng thái <em>Dự thảo</em> theo Mã HĐ và SĐT bóc tách từ tên file.</li>
                         </ul>
                     </div>
 

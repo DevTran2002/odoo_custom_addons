@@ -58,36 +58,31 @@ class ThCollaboratorUploadWizard(models.TransientModel):
         Profile = self.env['th.collaborator.profile']
         base_name = os.path.splitext(os.path.basename(file_name))[0].strip()
 
-        hyphen_parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
-        if len(hyphen_parts) >= 2:
-            p1_phone = Profile._normalize_phone(hyphen_parts[1])
-            if len(p1_phone) >= 9:
-                code = hyphen_parts[0]
-                custom_name = ' - '.join(hyphen_parts[2:]) if len(hyphen_parts) > 2 else False
-                return p1_phone, code, custom_name
+        # Tách chuỗi theo dấu gạch ngang '-', nếu không có thì thử tách theo dấu gạch dưới '_'
+        parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
+        if len(parts) < 2:
+            parts = [p.strip() for p in re.split(r'\s*_\s*', base_name) if p.strip()]
 
-            p0_phone = Profile._normalize_phone(hyphen_parts[0])
-            if len(p0_phone) >= 9:
-                code = hyphen_parts[1]
-                custom_name = ' - '.join(hyphen_parts[2:]) if len(hyphen_parts) > 2 else False
-                return p0_phone, code, custom_name
+        # Tìm vị trí phần tử chứa số điện thoại hợp lệ
+        phone_idx = -1
+        phone_val = False
+        for idx, part in enumerate(parts):
+            norm_phone = Profile._normalize_phone(part)
+            if norm_phone and len(norm_phone) in (10, 11) and norm_phone.startswith('0'):
+                phone_idx = idx
+                phone_val = norm_phone
+                break
 
-        tokens = [token.strip() for token in re.split(r'[_\-\s]', base_name) if token.strip()]
-        if not tokens:
-            return False, False, False
-
-        phone0 = Profile._normalize_phone(tokens[0])
-        if len(phone0) >= 9:
-            code = tokens[1] if len(tokens) > 1 else False
-            custom_name = ' '.join(tokens[2:]) if len(tokens) > 2 else False
-            return phone0, code, custom_name
-
-        if len(tokens) >= 2:
-            phone1 = Profile._normalize_phone(tokens[1])
-            if len(phone1) >= 9:
-                code = tokens[0]
-                custom_name = ' '.join(tokens[2:]) if len(tokens) > 2 else False
-                return phone1, code, custom_name
+        if phone_idx != -1:
+            if phone_idx > 0:
+                # SĐT nằm ở sau: Mã HĐ nằm phía trước SĐT
+                code = '-'.join(parts[:phone_idx]).strip()
+                custom_name = ' - '.join(parts[phone_idx + 1:]).strip() if phone_idx + 1 < len(parts) else False
+            else:
+                # SĐT nằm đầu tiên: Mã HĐ là phần tử ngay sau SĐT
+                code = parts[1].strip() if len(parts) > 1 else False
+                custom_name = ' - '.join(parts[2:]).strip() if len(parts) > 2 else False
+            return phone_val, code, custom_name
 
         return False, False, False
 
@@ -125,12 +120,16 @@ class ThCollaboratorUploadWizard(models.TransientModel):
         for att in self.th_attachment_ids:
             phone, code, custom_name = self._extract_phone_and_code(att.name)
             if not phone:
-                unmatched_errors.append(f"{att.name}: Không tìm thấy số điện thoại hợp lệ ở đầu tên file.")
+                unmatched_errors.append(
+                    f"{att.name}: Tên tệp thiếu Số điện thoại CTV hợp lệ. Bắt buộc tên tệp phải chứa cả Mã HĐ và SĐT (Ví dụ: HD01-0912345678.pdf)."
+                )
                 continue
-            if not code:
-                unmatched_errors.append(f"{att.name}: Không tìm thấy Mã hợp đồng (cấu trúc yêu cầu: SĐT_MãHĐ_TênFile).")
+            if not code or not code.strip():
+                unmatched_errors.append(
+                    f"{att.name}: Tên tệp thiếu Mã hợp đồng. Bắt buộc tên tệp phải chứa cả Mã HĐ và SĐT (Ví dụ: HD01-0912345678.pdf)."
+                )
                 continue
-            extracted_data.append((att, phone, code, custom_name))
+            extracted_data.append((att, phone, code.strip(), custom_name))
             all_phones.add(phone)
 
         profiles = Profile.search([('th_phone_normalized', 'in', list(all_phones))])
@@ -144,11 +143,62 @@ class ThCollaboratorUploadWizard(models.TransientModel):
 
             existing_contract = Contract.search([('th_code', '=', code)], limit=1)
 
+            # Bắt buộc: Mã HĐ và SĐT phải thuộc về cùng một CTV để tránh upload nhầm hợp đồng
+            if existing_contract and existing_contract.th_collaborator_id.id != profile.id:
+                unmatched_errors.append(
+                    f"{att.name}: Mã HĐ '{code}' thuộc về CTV khác ({existing_contract.th_collaborator_id.name}), không khớp với CTV có SĐT {phone} ({profile.name})."
+                )
+                continue
+
             if self.th_mode == 'add':
                 if existing_contract:
-                    unmatched_errors.append(
-                        f"{att.name}: Mã HĐ '{code}' đã tồn tại trong hệ thống (HĐ: {existing_contract.name} - CTV: {existing_contract.th_collaborator_id.name}). Vui lòng chọn chế độ Thay thế nếu muốn cập nhật file."
+                    # Kiểm tra tính hợp lệ: Mã HĐ có thuộc về đúng CTV này hay không
+                    if existing_contract.th_collaborator_id.id != profile.id:
+                        unmatched_errors.append(
+                            f"{att.name}: Mã HĐ '{code}' thuộc về CTV khác ({existing_contract.th_collaborator_id.name}), không khớp với SĐT {phone}."
+                        )
+                        continue
+
+                    # Kiểm tra trạng thái: Tuyệt đối không cho phép nạp thêm tệp khi hợp đồng đã Hoàn tất hoặc Đã hủy
+                    if existing_contract.state in ('close', 'cancel') or existing_contract.th_is_readonly:
+                        unmatched_errors.append(
+                            f"{att.name}: Hợp đồng '{existing_contract.name}' (Mã: {code}) đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể nạp thêm tệp."
+                        )
+                        continue
+
+                    # Chỉ cho phép nạp bổ sung tệp vào hợp đồng đã có khi hợp đồng đang ở trạng thái Dự thảo hoặc Chờ pháp chế duyệt
+                    if existing_contract.state not in ('draft', 'legal_review'):
+                        state_label = dict(existing_contract._fields['state'].selection).get(existing_contract.state, existing_contract.state)
+                        unmatched_errors.append(
+                            f"{att.name}: Hợp đồng '{existing_contract.name}' (Mã: {code}) đang ở trạng thái '{state_label}'. Chỉ được upload bổ sung khi ở trạng thái Dự thảo hoặc Chờ pháp chế duyệt."
+                        )
+                        continue
+
+                    # Nếu hợp đồng ở trạng thái Dự thảo và đúng CTV: Tự động nạp bổ sung file vào hợp đồng đó, không tạo mới bản ghi
+                    att.write({
+                        'res_model': existing_contract._name,
+                        'res_id': existing_contract.id,
+                    })
+                    existing_contract.write({
+                        'th_company_attachment_ids': [Command.link(att.id)],
+                    })
+                    # Sử dụng sudo() để đảm bảo quyền tạo tài liệu hợp đồng và liên kết tệp đính kèm trong trường hợp phân quyền hạn chế
+                    self.env['th.collaborator.contract.document'].sudo().create({
+                        'name': att.name,
+                        'th_contract_id': existing_contract.id,
+                        'th_document_type': 'company_signed',
+                        'th_file': att.datas,
+                        'th_file_name': att.name,
+                        'th_attachment_id': att.id,
+                        'th_uploaded_by': 'company',
+                        'th_upload_date': fields.Datetime.now(),
+                        'th_user_id': self.env.user.id,
+                        'th_notes': _('Bổ sung tệp qua wizard nạp hợp đồng'),
+                    })
+                    existing_contract.message_post(
+                        body=_('Đã bổ sung tệp hợp đồng công ty mới "%s" qua nạp file hàng loạt.') % att.name
                     )
+                    updated_contracts |= existing_contract
                     continue
 
                 contract_name = custom_name or f"Hợp đồng {code} - {profile.name}"
@@ -186,24 +236,26 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                 created_contracts |= new_contract
 
             else:
+                # Chế độ Thay thế: Bắt buộc phải tìm thấy đúng hợp đồng có mã `code` của đúng CTV `profile`
                 target_contract = existing_contract
                 if not target_contract:
-                    if len(profile.th_contract_ids) == 1:
-                        target_contract = profile.th_contract_ids[0]
-                    else:
-                        running = profile.th_contract_ids.filtered(lambda c: c.state in ('draft', 'legal_review', 'approved'))
-                        if len(running) == 1:
-                            target_contract = running[0]
-
-                if not target_contract:
                     unmatched_errors.append(
-                        f"{att.name}: Không tìm thấy hợp đồng có mã '{code}' của CTV {profile.name} để thay thế."
+                        f"{att.name}: Không tìm thấy hợp đồng có mã '{code}' của CTV {profile.name} (SĐT: {phone}) để thay thế."
                     )
                     continue
 
-                if target_contract.th_collaborator_id.id != profile.id:
+                # Kiểm tra trạng thái: Tuyệt đối không cho phép thay thế tệp khi hợp đồng đã Hoàn tất hoặc Đã hủy
+                if target_contract.state in ('close', 'cancel') or target_contract.th_is_readonly:
                     unmatched_errors.append(
-                        f"{att.name}: Mã HĐ '{code}' thuộc về CTV khác ({target_contract.th_collaborator_id.name}), không khớp với SĐT {phone}."
+                        f"{att.name}: Hợp đồng '{target_contract.name}' (Mã: {code}) đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể thay thế tệp."
+                    )
+                    continue
+
+                # Chỉ cho phép thay thế tệp công ty khi hợp đồng đang ở trạng thái Dự thảo hoặc Chờ pháp chế duyệt
+                if target_contract.state not in ('draft', 'legal_review'):
+                    state_label = dict(target_contract._fields['state'].selection).get(target_contract.state, target_contract.state)
+                    unmatched_errors.append(
+                        f"{att.name}: Hợp đồng '{target_contract.name}' (Mã: {code}) đang ở trạng thái '{state_label}'. Chỉ được thay thế tệp khi ở trạng thái Dự thảo hoặc Chờ pháp chế duyệt."
                     )
                     continue
 
@@ -287,7 +339,12 @@ class ThCollaboratorUploadWizard(models.TransientModel):
 
         result_lines = []
         if self.th_mode == 'add':
-            result_lines.append(_('Tạo mới thành công %s hợp đồng.') % len(created_contracts))
+            if created_contracts:
+                result_lines.append(_('Tạo mới thành công %s hợp đồng.') % len(created_contracts))
+            if updated_contracts:
+                result_lines.append(_('Bổ sung tệp thành công cho %s hợp đồng đã có.') % len(updated_contracts))
+            if not created_contracts and not updated_contracts:
+                result_lines.append(_('Không có hợp đồng nào được tạo mới hoặc bổ sung tệp.'))
         else:
             result_lines.append(_('Cập nhật/thay thế file thành công cho %s hợp đồng.') % len(updated_contracts))
 

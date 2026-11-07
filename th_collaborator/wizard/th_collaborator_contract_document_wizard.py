@@ -30,11 +30,66 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
         string='Tên hiển thị tài liệu', compute='_compute_name', store=True, readonly=True)
     th_notes = fields.Text(string='Ghi chú')
 
+    def _extract_phone_and_code(self, file_name):
+        """Bóc tách số điện thoại, mã hợp đồng và tên hợp đồng từ tên tệp tin tải lên theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV]-[Loại HĐ]."""
+        Profile = self.env['th.collaborator.profile']
+        import os, re
+        base_name = os.path.splitext(os.path.basename(file_name or ''))[0].strip()
+
+        parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
+        if len(parts) < 2:
+            parts = [p.strip() for p in re.split(r'\s*_\s*', base_name) if p.strip()]
+
+        phone_idx = -1
+        phone_val = False
+        for idx, part in enumerate(parts):
+            norm_phone = Profile._normalize_phone(part)
+            if norm_phone and len(norm_phone) in (10, 11) and norm_phone.startswith('0'):
+                phone_idx = idx
+                phone_val = norm_phone
+                break
+
+        if phone_idx != -1:
+            if phone_idx > 0:
+                code = '-'.join(parts[:phone_idx]).strip()
+                custom_name = ' - '.join(parts[phone_idx + 1:]).strip() if phone_idx + 1 < len(parts) else False
+            else:
+                code = parts[1].strip() if len(parts) > 1 else False
+                custom_name = ' - '.join(parts[2:]).strip() if len(parts) > 2 else False
+            return phone_val, code, custom_name
+
+        return False, False, False
+
     @api.onchange('th_file_name')
     def _onchange_th_file_name(self):
-        """Tự động cập nhật tên hiển thị tài liệu ngay trên giao diện khi người dùng chọn tệp."""
+        """Tự động kiểm tra tính hợp lệ của tên tệp tải lên so với hợp đồng mục tiêu."""
         if self.th_file_name:
             self.name = self.th_file_name
+            phone, code, _custom = self._extract_phone_and_code(self.th_file_name)
+            contract = self.th_contract_id
+            if contract:
+                contract_code = (contract.th_code or '').strip()
+                Profile = self.env['th.collaborator.profile']
+                contract_phone = Profile._normalize_phone(contract.th_phone or contract.th_collaborator_id.th_phone or '')
+
+                if not phone or not code:
+                    return {
+                        'warning': {
+                            'title': _('Tên tệp không đúng quy chuẩn!'),
+                            'message': _('Tên tệp bắt buộc phải chứa cả Mã HĐ và SĐT CTV theo quy chuẩn [Mã HĐ]-[SĐT] (Ví dụ: %s-%s.pdf).') % (
+                                contract_code or _('MãHĐ'), contract_phone or _('SĐT')
+                            )
+                        }
+                    }
+                if code.lower() != contract_code.lower() or phone != contract_phone:
+                    return {
+                        'warning': {
+                            'title': _('Cảnh báo không khớp thông tin hợp đồng!'),
+                            'message': _('Tệp vừa chọn có Mã HĐ "%s" và SĐT "%s", KHÔNG KHỚP với Hợp đồng đang mở (Mã HĐ: "%s" - SĐT: "%s" - CTV: %s). Vui lòng kiểm tra lại để tránh nạp nhầm!') % (
+                                code, phone, contract_code, contract_phone, contract.th_collaborator_id.name
+                            )
+                        }
+                    }
 
     @api.depends('th_file_name')
     def _compute_name(self):
@@ -43,16 +98,46 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
             rec.name = rec.th_file_name or False
 
     def action_confirm_upload(self):
-        """Xử lý khởi tạo tài liệu hợp đồng và liên kết vào hợp đồng mục tiêu."""
+        """Xử lý khởi tạo tài liệu hợp đồng và liên kết vào hợp đồng mục tiêu với kiểm tra an toàn nghiêm ngặt."""
         self.ensure_one()
         if not self.th_document_type:
             raise UserError(_('Vui lòng chọn Phân loại bản ký.'))
         if not self.th_file:
             raise UserError(_('Vui lòng chọn tệp hợp đồng cần tải lên.'))
-        if self.th_contract_id.th_is_readonly:
-            raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc đã Hết hạn, không thể tải lên thêm tệp.'))
-        if self.th_contract_id.state in ('close', 'cancel'):
-            raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể tải lên thêm tệp.'))
+        if not self.th_file_name:
+            raise UserError(_('Không xác định được tên tệp hợp đồng tải lên.'))
+
+        contract = self.th_contract_id
+        if contract.th_is_readonly or contract.state in ('close', 'cancel'):
+            raise UserError(_('Hợp đồng "%s" đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể tải lên thêm tệp.') % contract.name)
+
+        # Chỉ cho phép nạp tệp hợp đồng công ty khi hợp đồng đang ở trạng thái Dự thảo hoặc Chờ pháp chế duyệt
+        if self.th_document_type in ('company_raw', 'company_signed') and contract.state not in ('draft', 'legal_review'):
+            state_label = dict(contract._fields['state'].selection).get(contract.state, contract.state)
+            raise UserError(_('Hợp đồng "%s" đang ở trạng thái "%s". Chỉ được upload tệp hợp đồng khi hợp đồng ở trạng thái Dự thảo hoặc Chờ pháp chế duyệt!') % (
+                contract.name, state_label
+            ))
+
+        # Bắt buộc tên tệp phải chứa đầy đủ cả Mã HĐ và SĐT CTV để tuyệt đối không nạp nhầm khi CTV có nhiều hợp đồng
+        phone, code, _custom = self._extract_phone_and_code(self.th_file_name)
+        contract_code = (contract.th_code or '').strip()
+        Profile = self.env['th.collaborator.profile']
+        contract_phone = Profile._normalize_phone(contract.th_phone or contract.th_collaborator_id.th_phone or '')
+
+        if not phone or not code:
+            raise UserError(_('Tên tệp tải lên bắt buộc phải chứa đầy đủ cả Mã HĐ và Số điện thoại CTV theo quy chuẩn [Mã HĐ]-[SĐT] (Ví dụ: %s-%s.pdf). Tên tệp hiện tại: "%s"') % (
+                contract_code or _('MãHĐ'), contract_phone or _('SĐT'), self.th_file_name
+            ))
+
+        if code.lower() != contract_code.lower():
+            raise UserError(_('Mã HĐ trong tên tệp ("%s") không khớp với Mã của hợp đồng đang mở ("%s" - HĐ: %s). Vui lòng kiểm tra lại để tránh nạp nhầm hợp đồng!') % (
+                code, contract_code, contract.name
+            ))
+
+        if phone != contract_phone:
+            raise UserError(_('Số điện thoại trong tên tệp ("%s") không khớp với Số điện thoại của CTV trong hợp đồng này ("%s" - CTV: %s). Vui lòng kiểm tra lại để tránh nạp nhầm CTV!') % (
+                phone, contract_phone, contract.th_collaborator_id.name
+            ))
 
         display_name = self.name or self.th_file_name or _('Tài liệu hợp đồng')
         contract = self.th_contract_id

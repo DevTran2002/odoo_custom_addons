@@ -151,65 +151,46 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
             'target': 'new',
         }
 
-    def _match_contract_for_file(self, file_name, target_contracts):
-        """Đối chiếu tên tệp với danh sách hợp đồng đã chọn theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV]-[Loại HĐ]."""
-        base_name = os.path.splitext(os.path.basename(file_name))[0].strip()
+    def _extract_phone_and_code(self, file_name):
+        """Bóc tách số điện thoại, mã hợp đồng và tên hợp đồng từ tên tệp tin tải lên theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV]-[Loại HĐ]."""
         Profile = self.env['th.collaborator.profile']
+        base_name = os.path.splitext(os.path.basename(file_name or ''))[0].strip()
 
-        hyphen_parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
-        if len(hyphen_parts) >= 2:
-            part0 = hyphen_parts[0].lower()
-            part1_phone = Profile._normalize_phone(hyphen_parts[1])
-            for contract in target_contracts:
-                c_code = (contract.th_code or '').strip().lower()
-                c_phone = contract.th_collaborator_id.th_phone_normalized or ''
-                if c_code and c_code == part0:
-                    if part1_phone and len(part1_phone) >= 9 and c_phone:
-                        if c_phone == part1_phone:
-                            return contract
-                    return contract
+        parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
+        if len(parts) < 2:
+            parts = [p.strip() for p in re.split(r'\s*_\s*', base_name) if p.strip()]
 
-            part0_phone = Profile._normalize_phone(hyphen_parts[0])
-            part1_code = hyphen_parts[1].lower()
-            if len(part0_phone) >= 9:
-                for contract in target_contracts:
-                    c_code = (contract.th_code or '').strip().lower()
-                    c_phone = contract.th_collaborator_id.th_phone_normalized or ''
-                    if c_phone and c_phone == part0_phone:
-                        if part1_code and c_code == part1_code:
-                            return contract
-                        return contract
+        phone_idx = -1
+        phone_val = False
+        for idx, part in enumerate(parts):
+            norm_phone = Profile._normalize_phone(part)
+            if norm_phone and len(norm_phone) in (10, 11) and norm_phone.startswith('0'):
+                phone_idx = idx
+                phone_val = norm_phone
+                break
 
-        tokens = [t.strip() for t in re.split(r'[_\\-\\s.]', base_name) if t.strip()]
+        if phone_idx != -1:
+            if phone_idx > 0:
+                code = '-'.join(parts[:phone_idx]).strip()
+                custom_name = ' - '.join(parts[phone_idx + 1:]).strip() if phone_idx + 1 < len(parts) else False
+            else:
+                code = parts[1].strip() if len(parts) > 1 else False
+                custom_name = ' - '.join(parts[2:]).strip() if len(parts) > 2 else False
+            return phone_val, code, custom_name
 
+        return False, False, False
+
+    def _match_contract_for_file(self, file_name, target_contracts):
+        """Đối chiếu tên tệp với danh sách hợp đồng đã chọn bắt buộc phải khớp cả Mã HĐ và SĐT CTV để tránh nạp nhầm."""
+        phone, code, _custom = self._extract_phone_and_code(file_name)
+        if not phone or not code:
+            return False
+
+        Profile = self.env['th.collaborator.profile']
         for contract in target_contracts:
-            if contract.th_code:
-                code_lower = contract.th_code.strip().lower()
-                for token in tokens:
-                    if token.lower() == code_lower:
-                        return contract
-                if code_lower in base_name.lower() and len(code_lower) >= 3:
-                    return contract
-
-        for token in tokens:
-            normalized = Profile._normalize_phone(token)
-            if len(normalized) >= 9:
-                matched_contracts = target_contracts.filtered(
-                    lambda c: c.th_collaborator_id.th_phone_normalized == normalized)
-                if len(matched_contracts) == 1:
-                    return matched_contracts[0]
-
-        first_token = tokens[0] if tokens else ''
-        if first_token.isdigit():
-            stt_num = int(first_token)
-            matched_contracts = target_contracts.filtered(
-                lambda c: c.th_collaborator_id.th_sequence == stt_num)
-            if len(matched_contracts) == 1:
-                return matched_contracts[0]
-
-        for contract in target_contracts:
-            ctv_name = (contract.th_collaborator_id.name or '').strip().lower()
-            if ctv_name and ctv_name in base_name.lower():
+            c_code = (contract.th_code or '').strip().lower()
+            c_phone = contract.th_collaborator_id.th_phone_normalized or Profile._normalize_phone(contract.th_phone or '')
+            if c_code == code.lower() and c_phone == phone:
                 return contract
 
         return False
@@ -237,17 +218,39 @@ class ThCollaboratorContractBatchWizard(models.TransientModel):
         unmatched_errors = []
 
         for att in self.th_attachment_ids:
+            phone, code, _custom = self._extract_phone_and_code(att.name)
+            if not phone:
+                unmatched_errors.append(
+                    _('%s: Tên tệp thiếu Số điện thoại CTV hợp lệ. Bắt buộc tên tệp phải chứa cả Mã HĐ và SĐT (Ví dụ: HD01-0912345678.pdf).') % att.name
+                )
+                continue
+            if not code or not code.strip():
+                unmatched_errors.append(
+                    _('%s: Tên tệp thiếu Mã hợp đồng. Bắt buộc tên tệp phải chứa cả Mã HĐ và SĐT (Ví dụ: HD01-0912345678.pdf).') % att.name
+                )
+                continue
+
             contract = self._match_contract_for_file(att.name, target_contracts)
             if not contract:
                 unmatched_errors.append(
-                    _('%s: Không tìm thấy Mã HĐ hoặc SĐT tương ứng trong danh sách các hợp đồng đang được chọn.') % att.name
+                    _('%s: Không tìm thấy hợp đồng nào khớp cả Mã HĐ "%s" và SĐT "%s" trong danh sách hợp đồng đang chọn.') % (
+                        att.name, code, phone
+                    )
                 )
                 continue
 
             if contract.th_is_readonly or contract.state in ('close', 'cancel'):
                 unmatched_errors.append(
-                    _('%s: Hợp đồng "%s" (Mã: %s) đã đóng hoặc hết hạn, không thể cập nhật thêm tệp.') % (
+                    _('%s: Hợp đồng "%s" (Mã: %s) đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể cập nhật thêm tệp.') % (
                         att.name, contract.name, contract.th_code or _('Chưa có mã'))
+                )
+                continue
+
+            if self.th_contract_type == 'company' and contract.state not in ('draft', 'legal_review'):
+                state_label = dict(contract._fields['state'].selection).get(contract.state, contract.state)
+                unmatched_errors.append(
+                    _('%s: Hợp đồng "%s" (Mã: %s) đang ở trạng thái "%s". Chỉ cho phép tải lên tệp công ty khi ở trạng thái Dự thảo hoặc Chờ pháp chế duyệt.') % (
+                        att.name, contract.name, contract.th_code or _('Chưa có mã'), state_label)
                 )
                 continue
 
