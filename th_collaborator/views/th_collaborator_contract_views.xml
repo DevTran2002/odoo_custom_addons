@@ -135,13 +135,13 @@
                     <button name="action_submit_legal_review" type="object" string="Gửi duyệt" class="oe_highlight" icon="fa-paper-plane"
                             attrs="{'invisible': ['|', ('state', '!=', 'draft'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>
 
-                    <button name="action_legal_approve" type="object" string="Pháp chế duyệt" class="oe_highlight" icon="fa-check"
-                            groups="th_collaborator.th_role_collaborator_legal"
-                            attrs="{'invisible': ['|', ('state', '!=', 'legal_review'), ('th_is_readonly', '=', True)]}"/>
+                    <field name="th_can_legal_approve" invisible="1"/>
 
-                    <button name="action_legal_reject" type="object" string="Từ chối kiểm duyệt" class="btn-secondary" icon="fa-times"
-                            groups="th_collaborator.th_role_collaborator_legal"
-                            attrs="{'invisible': ['|', ('state', '!=', 'legal_review'), ('th_is_readonly', '=', True)]}"/>
+                    <button name="action_legal_approve" type="object" string="Pháp chế duyệt" class="oe_highlight" icon="fa-check"
+                            attrs="{'invisible': ['|', ('state', '!=', 'legal_review'), '|', ('th_is_readonly', '=', True), ('th_can_legal_approve', '=', False)]}"/>
+
+                    <button name="action_legal_reject" type="object" string="Từ chối" class="btn-secondary" icon="fa-times"
+                            attrs="{'invisible': ['|', ('state', '!=', 'legal_review'), '|', ('th_is_readonly', '=', True), ('th_can_legal_approve', '=', False)]}"/>
 
                     <button name="th_action_send_contract_mail" type="object" string="Gửi mail hợp đồng" class="oe_highlight" icon="fa-envelope"
                             attrs="{'invisible': ['|', ('state', '!=', 'approved'), '|', ('th_is_readonly', '=', True), ('th_company_file_name', '=', 'Chưa có file')]}"/>

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
 import os
-import re
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
@@ -19,6 +18,11 @@ class ThCollaboratorUploadWizard(models.TransientModel):
         ('add', 'Bổ sung hợp đồng mới'),
         ('replace', 'Thay thế hợp đồng cũ'),
     ], string='Chế độ xử lý', default='add', required=True)
+
+    th_company_sign_type = fields.Selection([
+        ('signed', 'Bản có chữ ký số'),
+        ('raw', 'Bản chưa có ký số'),
+    ], string='Phân loại chữ ký số', default='signed', required=True)
 
     th_contract_type_ids = fields.Many2many(
         'th.collaborator.contract.type', 'th_collaborator_upload_wizard_contract_type_rel',
@@ -53,39 +57,6 @@ class ThCollaboratorUploadWizard(models.TransientModel):
             res['th_target_contract_ids'] = [Command.set(active_ids)]
         return res
 
-    def _extract_phone_and_code(self, file_name):
-        """Bóc tách số điện thoại, mã hợp đồng và tên hợp đồng từ tên tệp tin tải lên theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV]-[Loại HĐ]."""
-        Profile = self.env['th.collaborator.profile']
-        base_name = os.path.splitext(os.path.basename(file_name))[0].strip()
-
-        # Tách chuỗi theo dấu gạch ngang '-', nếu không có thì thử tách theo dấu gạch dưới '_'
-        parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
-        if len(parts) < 2:
-            parts = [p.strip() for p in re.split(r'\s*_\s*', base_name) if p.strip()]
-
-        # Tìm vị trí phần tử chứa số điện thoại hợp lệ
-        phone_idx = -1
-        phone_val = False
-        for idx, part in enumerate(parts):
-            norm_phone = Profile._normalize_phone(part)
-            if norm_phone and len(norm_phone) in (10, 11) and norm_phone.startswith('0'):
-                phone_idx = idx
-                phone_val = norm_phone
-                break
-
-        if phone_idx != -1:
-            if phone_idx > 0:
-                # SĐT nằm ở sau: Mã HĐ nằm phía trước SĐT
-                code = '-'.join(parts[:phone_idx]).strip()
-                custom_name = ' - '.join(parts[phone_idx + 1:]).strip() if phone_idx + 1 < len(parts) else False
-            else:
-                # SĐT nằm đầu tiên: Mã HĐ là phần tử ngay sau SĐT
-                code = parts[1].strip() if len(parts) > 1 else False
-                custom_name = ' - '.join(parts[2:]).strip() if len(parts) > 2 else False
-            return phone_val, code, custom_name
-
-        return False, False, False
-
     def th_action_import_contracts(self):
         """Thực hiện xử lý nạp hàng loạt tệp hợp đồng theo chế độ bổ sung mới hoặc thay thế."""
         self.ensure_one()
@@ -115,54 +86,39 @@ class ThCollaboratorUploadWizard(models.TransientModel):
         updated_contracts = self.env['th.collaborator.contract']
         unmatched_errors = []
 
-        extracted_data = []
-        all_phones = set()
+        target_doc_type = 'company_signed' if self.th_company_sign_type == 'signed' else 'company_raw'
+
         for att in self.th_attachment_ids:
-            phone, code, custom_name = self._extract_phone_and_code(att.name)
-            if not phone:
-                unmatched_errors.append(
-                    f"{att.name}: Tên tệp thiếu Số điện thoại CTV hợp lệ. Bắt buộc tên tệp phải chứa cả Mã HĐ và SĐT (Ví dụ: HD01-0912345678.pdf)."
-                )
+            # Sử dụng phương thức base đối soát tệp tin dùng chung từ th.collaborator.contract
+            existing_contract, phone, code, collaborator_name, err_msg = Contract.th_match_contract_for_file(att.name)
+            if err_msg:
+                unmatched_errors.append(err_msg)
                 continue
-            if not code or not code.strip():
-                unmatched_errors.append(
-                    f"{att.name}: Tên tệp thiếu Mã hợp đồng. Bắt buộc tên tệp phải chứa cả Mã HĐ và SĐT (Ví dụ: HD01-0912345678.pdf)."
-                )
-                continue
-            extracted_data.append((att, phone, code.strip(), custom_name))
-            all_phones.add(phone)
 
-        profiles = Profile.search([('th_phone_normalized', 'in', list(all_phones))])
-        profile_map = {p.th_phone_normalized: p for p in profiles}
-
-        for att, phone, code, custom_name in extracted_data:
-            profile = profile_map.get(phone)
+            profile = Profile.search([('th_phone_normalized', '=', phone)], limit=1)
             if not profile:
-                unmatched_errors.append(f"{att.name}: Không tìm thấy CTV có số điện thoại {phone}.")
+                unmatched_errors.append(
+                    _('%s: Không tìm thấy CTV có số điện thoại %s.') % (att.name, phone)
+                )
                 continue
 
-            existing_contract = Contract.search([('th_code', '=', code)], limit=1)
-
-            # Bắt buộc: Mã HĐ và SĐT phải thuộc về cùng một CTV để tránh upload nhầm hợp đồng
+            # Bắt buộc: Mã HĐ và SĐT phải thuộc về cùng một CTV để tránh nạp nhầm hợp đồng
             if existing_contract and existing_contract.th_collaborator_id.id != profile.id:
                 unmatched_errors.append(
-                    f"{att.name}: Mã HĐ '{code}' thuộc về CTV khác ({existing_contract.th_collaborator_id.name}), không khớp với CTV có SĐT {phone} ({profile.name})."
+                    _('%s: Mã HĐ "%s" thuộc về CTV khác (%s), không khớp với CTV có SĐT %s (%s).') % (
+                        att.name, code, existing_contract.th_collaborator_id.name, phone, profile.name
+                    )
                 )
                 continue
 
             if self.th_mode == 'add':
                 if existing_contract:
-                    # Kiểm tra tính hợp lệ: Mã HĐ có thuộc về đúng CTV này hay không
-                    if existing_contract.th_collaborator_id.id != profile.id:
-                        unmatched_errors.append(
-                            f"{att.name}: Mã HĐ '{code}' thuộc về CTV khác ({existing_contract.th_collaborator_id.name}), không khớp với SĐT {phone}."
-                        )
-                        continue
-
                     # Kiểm tra trạng thái: Tuyệt đối không cho phép nạp thêm tệp khi hợp đồng đã Hoàn tất hoặc Đã hủy
                     if existing_contract.state in ('close', 'cancel') or existing_contract.th_is_readonly:
                         unmatched_errors.append(
-                            f"{att.name}: Hợp đồng '{existing_contract.name}' (Mã: {code}) đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể nạp thêm tệp."
+                            _('%s: Hợp đồng "%s" (Mã: %s) đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể nạp thêm tệp.') % (
+                                att.name, existing_contract.name, code
+                            )
                         )
                         continue
 
@@ -170,38 +126,21 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                     if existing_contract.state not in ('draft', 'legal_review'):
                         state_label = dict(existing_contract._fields['state'].selection).get(existing_contract.state, existing_contract.state)
                         unmatched_errors.append(
-                            f"{att.name}: Hợp đồng '{existing_contract.name}' (Mã: {code}) đang ở trạng thái '{state_label}'. Chỉ được upload bổ sung khi ở trạng thái Dự thảo hoặc Chờ pháp chế duyệt."
+                            _('%s: Hợp đồng "%s" (Mã: %s) đang ở trạng thái "%s". Chỉ được upload bổ sung khi ở trạng thái Dự thảo hoặc Chờ pháp chế duyệt.') % (
+                                att.name, existing_contract.name, code, state_label
+                            )
                         )
                         continue
 
-                    # Nếu hợp đồng ở trạng thái Dự thảo và đúng CTV: Tự động nạp bổ sung file vào hợp đồng đó, không tạo mới bản ghi
-                    att.write({
-                        'res_model': existing_contract._name,
-                        'res_id': existing_contract.id,
-                    })
-                    existing_contract.write({
-                        'th_company_attachment_ids': [Command.link(att.id)],
-                    })
-                    # Sử dụng sudo() để đảm bảo quyền tạo tài liệu hợp đồng và liên kết tệp đính kèm trong trường hợp phân quyền hạn chế
-                    self.env['th.collaborator.contract.document'].sudo().create({
-                        'name': att.name,
-                        'th_contract_id': existing_contract.id,
-                        'th_document_type': 'company_signed',
-                        'th_file': att.datas,
-                        'th_file_name': att.name,
-                        'th_attachment_id': att.id,
-                        'th_uploaded_by': 'company',
-                        'th_upload_date': fields.Datetime.now(),
-                        'th_user_id': self.env.user.id,
-                        'th_notes': _('Bổ sung tệp qua wizard nạp hợp đồng'),
-                    })
-                    existing_contract.message_post(
-                        body=_('Đã bổ sung tệp hợp đồng công ty mới "%s" qua nạp file hàng loạt.') % att.name
+                    # Nạp bổ sung tệp bằng phương thức base dùng chung
+                    existing_contract.th_attach_document_file(
+                        att, document_type=target_doc_type, notes=_('Bổ sung tệp qua wizard nạp hợp đồng')
                     )
                     updated_contracts |= existing_contract
                     continue
 
-                contract_name = custom_name or f"Hợp đồng {code} - {profile.name}"
+                # Tạo mới hợp đồng
+                contract_name = f"Hợp đồng {code} - {collaborator_name or profile.name}"
                 new_contract = Contract.create({
                     'name': contract_name,
                     'th_code': code,
@@ -213,26 +152,10 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                     'date_end': self.date_end,
                     'state': 'draft',
                 })
-                att.write({
-                    'res_model': new_contract._name,
-                    'res_id': new_contract.id,
-                })
-                new_contract.write({
-                    'th_company_attachment_ids': [Command.link(att.id)],
-                })
-                self.env['th.collaborator.contract.document'].sudo().create({
-                    'name': att.name,
-                    'th_contract_id': new_contract.id,
-                    'th_document_type': 'company_signed',
-                    'th_file': att.datas,
-                    'th_file_name': att.name,
-                    'th_attachment_id': att.id,
-                    'th_uploaded_by': 'company',
-                    'th_upload_date': fields.Datetime.now(),
-                    'th_user_id': self.env.user.id,
-                    'th_notes': _('Nạp từ wizard tải hàng loạt'),
-                })
-                new_contract.message_post(body=_('Tạo mới hợp đồng qua nạp file hàng loạt (Tệp nguồn: %s).') % att.name)
+                # Gắn tệp bằng phương thức base dùng chung
+                new_contract.th_attach_document_file(
+                    att, document_type=target_doc_type, notes=_('Nạp từ wizard tải hàng loạt')
+                )
                 created_contracts |= new_contract
 
             else:
@@ -240,14 +163,18 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                 target_contract = existing_contract
                 if not target_contract:
                     unmatched_errors.append(
-                        f"{att.name}: Không tìm thấy hợp đồng có mã '{code}' của CTV {profile.name} (SĐT: {phone}) để thay thế."
+                        _('%s: Không tìm thấy hợp đồng có mã "%s" của CTV %s (SĐT: %s) để thay thế.') % (
+                            att.name, code, profile.name, phone
+                        )
                     )
                     continue
 
                 # Kiểm tra trạng thái: Tuyệt đối không cho phép thay thế tệp khi hợp đồng đã Hoàn tất hoặc Đã hủy
                 if target_contract.state in ('close', 'cancel') or target_contract.th_is_readonly:
                     unmatched_errors.append(
-                        f"{att.name}: Hợp đồng '{target_contract.name}' (Mã: {code}) đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể thay thế tệp."
+                        _('%s: Hợp đồng "%s" (Mã: %s) đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể thay thế tệp.') % (
+                            att.name, target_contract.name, code
+                        )
                     )
                     continue
 
@@ -255,83 +182,15 @@ class ThCollaboratorUploadWizard(models.TransientModel):
                 if target_contract.state not in ('draft', 'legal_review'):
                     state_label = dict(target_contract._fields['state'].selection).get(target_contract.state, target_contract.state)
                     unmatched_errors.append(
-                        f"{att.name}: Hợp đồng '{target_contract.name}' (Mã: {code}) đang ở trạng thái '{state_label}'. Chỉ được thay thế tệp khi ở trạng thái Dự thảo hoặc Chờ pháp chế duyệt."
+                        _('%s: Hợp đồng "%s" (Mã: %s) đang ở trạng thái "%s". Chỉ được thay thế tệp khi ở trạng thái Dự thảo hoặc Chờ pháp chế duyệt.') % (
+                            att.name, target_contract.name, code, state_label
+                        )
                     )
                     continue
 
-                old_file_names = target_contract.th_company_attachment_ids.mapped('name')
-                att.write({
-                    'res_model': target_contract._name,
-                    'res_id': target_contract.id,
-                })
-                old_same_name_atts = target_contract.th_company_attachment_ids.filtered(lambda a: a.name == att.name)
-                commands = [Command.link(att.id)]
-                for old_a in old_same_name_atts:
-                    if old_a.id != att.id:
-                        commands.append(Command.unlink(old_a.id))
-                target_contract.write({'th_company_attachment_ids': commands})
-
-                same_name_docs = target_contract.th_document_ids.filtered(
-                    lambda d: d.name == att.name or d.th_file_name == att.name
-                )
-                if same_name_docs:
-                    target_doc = same_name_docs.sorted(
-                        key=lambda d: (d.th_upload_date or fields.Datetime.now(), d.id),
-                        reverse=True
-                    )[0]
-                    old_att = target_doc.th_attachment_id
-                    target_doc.sudo().write({
-                        'name': att.name,
-                        'th_document_type': 'company_signed',
-                        'th_file': att.datas,
-                        'th_file_name': att.name,
-                        'th_attachment_id': att.id,
-                        'th_uploaded_by': 'company',
-                        'th_upload_date': fields.Datetime.now(),
-                        'th_user_id': self.env.user.id,
-                        'th_notes': _('Thay thế file qua nạp hàng loạt'),
-                    })
-                    if old_att and old_att.id != att.id:
-                        other_using_old = target_contract.th_document_ids.filtered(
-                            lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
-                        )
-                        if not other_using_old:
-                            old_att.sudo().unlink()
-                else:
-                    company_docs = target_contract.th_document_ids.filtered(
-                        lambda d: d.th_document_type in ('company_signed', 'company_raw')
-                    )
-                    if len(company_docs) == 1:
-                        main_doc = company_docs[0]
-                        main_doc.sudo().write({
-                            'name': att.name,
-                            'th_document_type': 'company_signed',
-                            'th_file': att.datas,
-                            'th_file_name': att.name,
-                            'th_attachment_id': att.id,
-                            'th_uploaded_by': 'company',
-                            'th_upload_date': fields.Datetime.now(),
-                            'th_user_id': self.env.user.id,
-                            'th_notes': _('Thay thế file qua nạp hàng loạt'),
-                        })
-                    else:
-                        self.env['th.collaborator.contract.document'].sudo().create({
-                            'name': att.name,
-                            'th_contract_id': target_contract.id,
-                            'th_document_type': 'company_signed',
-                            'th_file': att.datas,
-                            'th_file_name': att.name,
-                            'th_attachment_id': att.id,
-                            'th_uploaded_by': 'company',
-                            'th_upload_date': fields.Datetime.now(),
-                            'th_user_id': self.env.user.id,
-                            'th_notes': _('Thay thế file qua nạp hàng loạt'),
-                        })
-
-                target_contract.message_post(
-                    body=_('Đã thay thế file hợp đồng công ty cũ [%s] bằng file mới [%s] qua nạp hàng loạt.') % (
-                        ', '.join(old_file_names) if old_file_names else _('Chưa có'), att.name
-                    )
+                # Thay thế tệp bằng phương thức base dùng chung
+                target_contract.th_replace_document_file(
+                    att, document_type=target_doc_type, notes=_('Thay thế file qua nạp hàng loạt')
                 )
                 updated_contracts |= target_contract
 

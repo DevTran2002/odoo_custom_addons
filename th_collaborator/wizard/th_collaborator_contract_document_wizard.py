@@ -30,42 +30,12 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
         string='Tên hiển thị tài liệu', compute='_compute_name', store=True, readonly=True)
     th_notes = fields.Text(string='Ghi chú')
 
-    def _extract_phone_and_code(self, file_name):
-        """Bóc tách số điện thoại, mã hợp đồng và tên hợp đồng từ tên tệp tin tải lên theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV]-[Loại HĐ]."""
-        Profile = self.env['th.collaborator.profile']
-        import os, re
-        base_name = os.path.splitext(os.path.basename(file_name or ''))[0].strip()
-
-        parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
-        if len(parts) < 2:
-            parts = [p.strip() for p in re.split(r'\s*_\s*', base_name) if p.strip()]
-
-        phone_idx = -1
-        phone_val = False
-        for idx, part in enumerate(parts):
-            norm_phone = Profile._normalize_phone(part)
-            if norm_phone and len(norm_phone) in (10, 11) and norm_phone.startswith('0'):
-                phone_idx = idx
-                phone_val = norm_phone
-                break
-
-        if phone_idx != -1:
-            if phone_idx > 0:
-                code = '-'.join(parts[:phone_idx]).strip()
-                custom_name = ' - '.join(parts[phone_idx + 1:]).strip() if phone_idx + 1 < len(parts) else False
-            else:
-                code = parts[1].strip() if len(parts) > 1 else False
-                custom_name = ' - '.join(parts[2:]).strip() if len(parts) > 2 else False
-            return phone_val, code, custom_name
-
-        return False, False, False
-
     @api.onchange('th_file_name')
     def _onchange_th_file_name(self):
         """Tự động kiểm tra tính hợp lệ của tên tệp tải lên so với hợp đồng mục tiêu."""
         if self.th_file_name:
             self.name = self.th_file_name
-            phone, code, _custom = self._extract_phone_and_code(self.th_file_name)
+            phone, code, _custom = self.env['th.collaborator.contract'].th_extract_file_info(self.th_file_name)
             contract = self.th_contract_id
             if contract:
                 contract_code = (contract.th_code or '').strip()
@@ -76,7 +46,7 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
                     return {
                         'warning': {
                             'title': _('Tên tệp không đúng quy chuẩn!'),
-                            'message': _('Tên tệp bắt buộc phải chứa cả Mã HĐ và SĐT CTV theo quy chuẩn [Mã HĐ]-[SĐT] (Ví dụ: %s-%s.pdf).') % (
+                            'message': _('Tên tệp bắt buộc phải chứa cả Mã HĐ và SĐT CTV theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV] (Ví dụ: %s-%s-Nguyen Van A.pdf).') % (
                                 contract_code or _('MãHĐ'), contract_phone or _('SĐT')
                             )
                         }
@@ -98,7 +68,7 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
             rec.name = rec.th_file_name or False
 
     def action_confirm_upload(self):
-        """Xử lý khởi tạo tài liệu hợp đồng và liên kết vào hợp đồng mục tiêu với kiểm tra an toàn nghiêm ngặt."""
+        """Xử lý khởi tạo tài liệu hợp đồng và liên kết vào hợp đồng mục tiêu thông qua hàm base dùng chung."""
         self.ensure_one()
         if not self.th_document_type:
             raise UserError(_('Vui lòng chọn Phân loại bản ký.'))
@@ -118,14 +88,14 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
                 contract.name, state_label
             ))
 
-        # Bắt buộc tên tệp phải chứa đầy đủ cả Mã HĐ và SĐT CTV để tuyệt đối không nạp nhầm khi CTV có nhiều hợp đồng
-        phone, code, _custom = self._extract_phone_and_code(self.th_file_name)
+        # Bắt buộc tên tệp phải chứa đầy đủ cả Mã HĐ và SĐT CTV theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV]
+        phone, code, _custom = self.env['th.collaborator.contract'].th_extract_file_info(self.th_file_name)
         contract_code = (contract.th_code or '').strip()
         Profile = self.env['th.collaborator.profile']
         contract_phone = Profile._normalize_phone(contract.th_phone or contract.th_collaborator_id.th_phone or '')
 
         if not phone or not code:
-            raise UserError(_('Tên tệp tải lên bắt buộc phải chứa đầy đủ cả Mã HĐ và Số điện thoại CTV theo quy chuẩn [Mã HĐ]-[SĐT] (Ví dụ: %s-%s.pdf). Tên tệp hiện tại: "%s"') % (
+            raise UserError(_('Tên tệp tải lên bắt buộc phải chứa đầy đủ cả Mã HĐ và Số điện thoại CTV theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV] (Ví dụ: %s-%s-Nguyen Van A.pdf). Tên tệp hiện tại: "%s"') % (
                 contract_code or _('MãHĐ'), contract_phone or _('SĐT'), self.th_file_name
             ))
 
@@ -140,34 +110,12 @@ class ThCollaboratorContractDocumentWizard(models.TransientModel):
             ))
 
         display_name = self.name or self.th_file_name or _('Tài liệu hợp đồng')
-        contract = self.th_contract_id
 
-        doc_vals = {
-            'name': display_name,
-            'th_contract_id': contract.id,
-            'th_document_type': self.th_document_type,
-            'th_file': self.th_file,
-            'th_file_name': self.th_file_name,
-            'th_uploaded_by': 'company',
-            'th_upload_date': fields.Datetime.now(),
-            'th_user_id': self.env.user.id,
-            'th_notes': self.th_notes,
-        }
-        new_doc = self.env['th.collaborator.contract.document'].create(doc_vals)
-
-        if new_doc.th_attachment_id:
-            if self.th_document_type in ('company_raw', 'company_signed'):
-                contract.write({
-                    'th_company_attachment_ids': [Command.link(new_doc.th_attachment_id.id)],
-                })
-            elif self.th_document_type == 'final_signed':
-                contract.write({
-                    'th_final_attachment_id': new_doc.th_attachment_id.id,
-                })
-
-        doc_type_label = dict(self._fields['th_document_type'].selection).get(self.th_document_type)
-        contract.message_post(
-            body=_('Nhân sự công ty đã tải lên tệp "%s" (Phân loại: %s).') % (display_name, doc_type_label)
+        # Sử dụng hàm base dùng chung trên contract để tạo document, gắn attachment và log Chatter
+        contract.th_attach_document_file(
+            (display_name, self.th_file),
+            document_type=self.th_document_type,
+            notes=self.th_notes
         )
 
         return {'type': 'ir.actions.act_window_close'}

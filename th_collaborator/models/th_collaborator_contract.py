@@ -117,6 +117,8 @@ class ThCollaboratorContract(models.Model):
         string='Khóa chỉnh sửa', compute='_compute_is_readonly')
     th_is_info_readonly = fields.Boolean(
         string='Khóa thông tin nghiệp vụ', compute='_compute_is_info_readonly')
+    th_can_legal_approve = fields.Boolean(
+        string='Được quyền duyệt pháp chế', compute='_compute_can_legal_approve')
 
     _sql_constraints = [
         ('th_code_uniq', 'unique(th_code)', 'Mã hợp đồng đã tồn tại trong hệ thống. Vui lòng chọn mã khác.'),
@@ -134,6 +136,40 @@ class ThCollaboratorContract(models.Model):
         """Khóa chỉnh sửa thông tin khi hợp đồng đã chuyển sang kiểm duyệt HCNS hoặc đã Hoàn tất."""
         for rec in self:
             rec.th_is_info_readonly = bool(rec.state != 'draft')
+
+    def _compute_can_legal_approve(self):
+        """Kiểm tra quyền hiển thị nút duyệt pháp chế:
+        - Quản trị viên module CTV (th_role_collaborator_admin): Luôn được hiển thị nút duyệt.
+        - Nhân viên pháp chế (th_role_collaborator_legal) không phải Quản lý: Được hiển thị nút duyệt.
+        - Quản lý thuần túy hoặc Nhân viên thường: Ẩn nút duyệt.
+        Lưu ý: Không kiểm tra base.group_system hay _is_admin() để khi người dùng quản trị
+        chuyển vai trò CTV sang Nhân viên/Quản lý thì giao diện phản ánh đúng vai trò đó (ẩn nút).
+        """
+        user = self.env.user
+        is_collab_admin = user.has_group('th_collaborator.th_role_collaborator_admin')
+        is_legal = user.has_group('th_collaborator.th_role_collaborator_legal')
+        is_manager = user.has_group('th_collaborator.th_role_collaborator_manager')
+
+        if is_collab_admin:
+            can_approve = True
+        elif is_legal and not is_manager:
+            can_approve = True
+        else:
+            can_approve = False
+
+        for rec in self:
+            rec.th_can_legal_approve = can_approve
+
+    def _check_legal_approval_rights(self):
+        """Kiểm tra quyền thực hiện phê duyệt/từ chối kiểm duyệt pháp chế."""
+        user = self.env.user
+        is_collab_admin = user.has_group('th_collaborator.th_role_collaborator_admin')
+        is_legal = user.has_group('th_collaborator.th_role_collaborator_legal')
+        is_manager = user.has_group('th_collaborator.th_role_collaborator_manager')
+
+        if is_collab_admin or (is_legal and not is_manager):
+            return True
+        raise UserError(_('Chỉ Nhân viên pháp chế hoặc Quản trị viên module Hợp đồng CTV mới có quyền kiểm duyệt hợp đồng.'))
 
     def _add_sql_constraints(self):
         """Khởi tạo token upload ngẫu nhiên duy nhất cho các bản ghi cũ trước khi gán ràng buộc unique."""
@@ -337,10 +373,7 @@ class ThCollaboratorContract(models.Model):
                             _('Hợp đồng "%s" phải ở trạng thái "Chờ duyệt" trước khi được phê duyệt.')
                             % rec.name
                         )
-                    if not (self.env.user.has_group('th_collaborator.th_role_collaborator_legal') or self.env.is_superuser()):
-                        raise UserError(
-                            _('Chỉ Nhân viên pháp chế, Quản lý hoặc Quản trị viên mới có quyền phê duyệt kiểm duyệt hợp đồng.')
-                        )
+                    self._check_legal_approval_rights()
                     # Chốt và khóa snapshot thông tin liên hệ tại thời điểm pháp chế phê duyệt
                     if not rec.th_phone and rec.th_collaborator_id.th_phone:
                         vals.setdefault('th_phone', rec.th_collaborator_id.th_phone)
@@ -475,8 +508,7 @@ class ThCollaboratorContract(models.Model):
 
     def action_legal_approve(self):
         """Pháp chế chấp nhận duyệt hợp đồng đạt yêu cầu."""
-        if not (self.env.user.has_group('th_collaborator.th_role_collaborator_legal') or self.env.is_superuser()):
-            raise UserError(_('Chỉ Nhân viên pháp chế, Quản lý hoặc Quản trị viên mới có quyền kiểm duyệt hợp đồng.'))
+        self._check_legal_approval_rights()
         for rec in self:
             if rec.th_is_readonly:
                 raise UserError(_('Hợp đồng "%s" đã khóa, không thể phê duyệt.') % rec.name)
@@ -497,8 +529,7 @@ class ThCollaboratorContract(models.Model):
 
     def action_legal_approve_batch(self):
         """Duyệt hàng loạt hợp đồng đang ở trạng thái Chờ duyệt."""
-        if not (self.env.user.has_group('th_collaborator.th_role_collaborator_legal') or self.env.is_superuser()):
-            raise UserError(_('Chỉ Nhân viên pháp chế, Quản lý hoặc Quản trị viên mới có quyền kiểm duyệt hợp đồng.'))
+        self._check_legal_approval_rights()
         valid_contracts = self.filtered(lambda c: c.state == 'legal_review' and not c.th_is_readonly)
         if not valid_contracts:
             raise UserError(_('Không có hợp đồng nào ở trạng thái "Chờ duyệt" hợp lệ để phê duyệt.'))
@@ -525,8 +556,7 @@ class ThCollaboratorContract(models.Model):
 
     def action_legal_reject(self):
         """Pháp chế không chấp nhận và trả về trạng thái Dự thảo để nhân viên chỉnh sửa."""
-        if not (self.env.user.has_group('th_collaborator.th_role_collaborator_legal') or self.env.is_superuser()):
-            raise UserError(_('Chỉ Nhân viên pháp chế, Quản lý hoặc Quản trị viên mới có quyền từ chối kiểm duyệt.'))
+        self._check_legal_approval_rights()
         for rec in self:
             if rec.th_is_readonly:
                 raise UserError(_('Hợp đồng "%s" đã khóa, không thể thao tác.') % rec.name)
@@ -1090,7 +1120,14 @@ class ThCollaboratorContract(models.Model):
             raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc đã Hết hạn, không thể tải lên thêm tệp.'))
         if self.state in ('close', 'cancel'):
             raise UserError(_('Hợp đồng đã ở trạng thái Hoàn tất hoặc Đã hủy, không thể tải lên thêm tệp.'))
+        # Tự động gán phân loại bản ký mặc định theo ngữ cảnh
         default_doc_type = 'final_signed' if self.state in ('submitted', 'pending_sign') else False
+        if not default_doc_type and self.state in ('draft', 'legal_review'):
+            type_names = ' '.join(self.th_contract_type_ids.mapped('name') or []).lower()
+            if any(k in type_names for k in ('chưa ký', 'chua ky')) or self.th_contract_flow == 'raw_template':
+                default_doc_type = 'company_raw'
+            else:
+                default_doc_type = 'company_signed'
         return {
             'name': _('Tải lên tệp hợp đồng'),
             'type': 'ir.actions.act_window',
@@ -1269,3 +1306,240 @@ class ThCollaboratorContract(models.Model):
 
         _logger.info('Cron th_cron_send_contract_reminders hoàn thành: %s hợp đồng được nhắc nhở.', reminded_count)
         return True
+
+
+    # -------------------------------------------------------------------------
+    # CÁC HÀM TIỆN ÍCH DÙNG CHUNG CHO BÓC TÁCH VÀ NẠP TỆP HỢP ĐỒNG (BASE METHODS)
+    # -------------------------------------------------------------------------
+
+    @api.model
+    def th_extract_file_info(self, file_name):
+        """Bóc tách số điện thoại, mã hợp đồng và tên CTV từ tên tệp tin theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV].
+        
+        Trả về tuple: (phone, code, collaborator_name)
+        - phone: Số điện thoại chuẩn hóa (bắt đầu bằng 0, 10-11 số) hoặc False nếu không tìm thấy.
+        - code: Mã hợp đồng hoặc False nếu không tìm thấy.
+        - collaborator_name: Tên CTV hoặc False nếu không có.
+        """
+        Profile = self.env['th.collaborator.profile']
+        base_name = os.path.splitext(os.path.basename(file_name or ''))[0].strip()
+
+        # Tách chuỗi theo dấu gạch ngang '-', nếu không có thì thử tách theo dấu gạch dưới '_'
+        parts = [p.strip() for p in re.split(r'\s*-\s*', base_name) if p.strip()]
+        if len(parts) < 2:
+            parts = [p.strip() for p in re.split(r'\s*_\s*', base_name) if p.strip()]
+
+        # Tìm vị trí phần tử chứa số điện thoại hợp lệ
+        phone_idx = -1
+        phone_val = False
+        for idx, part in enumerate(parts):
+            norm_phone = Profile._normalize_phone(part)
+            if norm_phone and len(norm_phone) in (10, 11) and norm_phone.startswith('0'):
+                phone_idx = idx
+                phone_val = norm_phone
+                break
+
+        if phone_idx != -1:
+            if phone_idx > 0:
+                # Cấu trúc: [Mã HĐ]-[SĐT]-[Tên CTV]
+                code = '-'.join(parts[:phone_idx]).strip()
+                collaborator_name = ' - '.join(parts[phone_idx + 1:]).strip() if phone_idx + 1 < len(parts) else False
+            else:
+                # Cấu trúc: [SĐT]-[Mã HĐ]-[Tên CTV]
+                code = parts[1].strip() if len(parts) > 1 else False
+                collaborator_name = ' - '.join(parts[2:]).strip() if len(parts) > 2 else False
+            return phone_val, code, collaborator_name
+
+        return False, False, False
+
+    @api.model
+    def th_match_contract_for_file(self, file_name, candidate_contracts=None):
+        """Tìm kiếm và đối chiếu hợp đồng phù hợp từ tên tệp tin tải lên theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV].
+        
+        Trả về tuple: (contract, phone, code, collaborator_name, error_message)
+        """
+        phone, code, collaborator_name = self.th_extract_file_info(file_name)
+        if not phone:
+            return False, False, False, False, _('%s: Tên tệp thiếu Số điện thoại CTV hợp lệ. Bắt buộc theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV] (Ví dụ: HD01-0912345678-Nguyen Van A.pdf).') % file_name
+        if not code or not code.strip():
+            return False, phone, False, False, _('%s: Tên tệp thiếu Mã hợp đồng. Bắt buộc theo quy chuẩn [Mã HĐ]-[SĐT]-[Tên CTV] (Ví dụ: HD01-0912345678-Nguyen Van A.pdf).') % file_name
+
+        Profile = self.env['th.collaborator.profile']
+        if candidate_contracts is not None:
+            # Đối chiếu trong danh sách hợp đồng ứng viên đã chọn (Batch Wizard)
+            for contract in candidate_contracts:
+                c_code = (contract.th_code or '').strip().lower()
+                c_phone = contract.th_collaborator_id.th_phone_normalized or Profile._normalize_phone(contract.th_phone or '')
+                if c_code == code.lower() and c_phone == phone:
+                    return contract, phone, code, collaborator_name, False
+            return False, phone, code, collaborator_name, _('%s: Không tìm thấy hợp đồng nào khớp cả Mã HĐ "%s" và SĐT "%s" trong danh sách đã chọn.') % (file_name, code, phone)
+        else:
+            # Tra cứu trong toàn bộ hệ thống (Upload Wizard)
+            existing_contract = self.search([('th_code', '=', code)], limit=1)
+            if existing_contract:
+                c_phone = existing_contract.th_collaborator_id.th_phone_normalized or Profile._normalize_phone(existing_contract.th_phone or '')
+                if c_phone != phone:
+                    return False, phone, code, collaborator_name, _(
+                        '%s: Mã HĐ "%s" thuộc về CTV khác (%s), không khớp với CTV có SĐT %s (%s).'
+                    ) % (file_name, code, existing_contract.th_collaborator_id.name, phone, collaborator_name or _('Chưa rõ tên'))
+            return existing_contract, phone, code, collaborator_name, False
+
+    def th_attach_document_file(self, attachment, document_type='company_signed', notes=None, user_id=None):
+        """Khởi tạo tài liệu th.collaborator.contract.document và liên kết tệp đính kèm vào hợp đồng hiện tại.
+        
+        - attachment: bản ghi ir.attachment hoặc tuple (file_name, file_data_base64)
+        - document_type: loại bản ký ('company_signed', 'company_raw', 'ctv_signed', 'ctv_digital_signed', 'final_signed')
+        - notes: ghi chú nguồn nạp
+        - user_id: ID người thực hiện tải lên
+        """
+        self.ensure_one()
+        DocModel = self.env['th.collaborator.contract.document']
+        current_user = user_id or self.env.user.id
+
+        if isinstance(attachment, models.Model) and attachment._name == 'ir.attachment':
+            att = attachment
+            file_name = att.name
+            file_data = att.datas
+        else:
+            file_name, file_data = attachment
+            # Dùng sudo() để đảm bảo quyền tạo ir.attachment gắn với hợp đồng
+            att = self.env['ir.attachment'].sudo().create({
+                'name': file_name,
+                'datas': file_data,
+                'res_model': self._name,
+                'res_id': self.id,
+            })
+
+        if att.res_model != self._name or att.res_id != self.id:
+            att.write({
+                'res_model': self._name,
+                'res_id': self.id,
+            })
+
+        doc_vals = {
+            'name': file_name,
+            'th_contract_id': self.id,
+            'th_document_type': document_type,
+            'th_file': file_data,
+            'th_file_name': file_name,
+            'th_attachment_id': att.id,
+            'th_uploaded_by': 'company',
+            'th_upload_date': fields.Datetime.now(),
+            'th_user_id': current_user,
+            'th_notes': notes or _('Bổ sung tệp tài liệu hợp đồng'),
+        }
+        # Dùng sudo() để đảm bảo nhân sự được phân quyền có thể ghi nhận tài liệu hợp đồng
+        new_doc = DocModel.sudo().create(doc_vals)
+
+        # Cập nhật liên kết đặc thù trên hợp đồng
+        if document_type in ('company_signed', 'company_raw'):
+            if att.id not in self.th_company_attachment_ids.ids:
+                self.write({'th_company_attachment_ids': [Command.link(att.id)]})
+        elif document_type == 'final_signed':
+            self.write({'th_final_attachment_id': att.id})
+
+        doc_type_label = dict(DocModel._fields['th_document_type'].selection).get(document_type, document_type)
+        self.message_post(body=_('Đã nạp tệp tài liệu mới "%s" (Phân loại: %s).') % (file_name, doc_type_label))
+        return new_doc
+
+    def th_replace_document_file(self, attachment, document_type='company_signed', notes=None, user_id=None):
+        """Thay thế tệp tài liệu cũ trên hợp đồng bằng tệp mới và dọn dẹp liên kết tệp cũ."""
+        self.ensure_one()
+        DocModel = self.env['th.collaborator.contract.document']
+        current_user = user_id or self.env.user.id
+
+        if isinstance(attachment, models.Model) and attachment._name == 'ir.attachment':
+            att = attachment
+            file_name = att.name
+            file_data = att.datas
+        else:
+            file_name, file_data = attachment
+            # Dùng sudo() để tạo tệp hệ thống mới cho hợp đồng
+            att = self.env['ir.attachment'].sudo().create({
+                'name': file_name,
+                'datas': file_data,
+                'res_model': self._name,
+                'res_id': self.id,
+            })
+
+        if att.res_model != self._name or att.res_id != self.id:
+            att.write({
+                'res_model': self._name,
+                'res_id': self.id,
+            })
+
+        old_file_names = self.th_company_attachment_ids.mapped('name')
+        if document_type in ('company_signed', 'company_raw'):
+            old_same_name_atts = self.th_company_attachment_ids.filtered(lambda a: a.name == file_name)
+            commands = [Command.link(att.id)]
+            for old_a in old_same_name_atts:
+                if old_a.id != att.id:
+                    commands.append(Command.unlink(old_a.id))
+            self.write({'th_company_attachment_ids': commands})
+
+            same_name_docs = self.th_document_ids.filtered(
+                lambda d: d.name == file_name or d.th_file_name == file_name
+            )
+            if same_name_docs:
+                target_doc = same_name_docs.sorted(
+                    key=lambda d: (d.th_upload_date or fields.Datetime.now(), d.id),
+                    reverse=True
+                )[0]
+                old_att = target_doc.th_attachment_id
+                # Dùng sudo() để cập nhật bản ghi tài liệu hợp đồng
+                target_doc.sudo().write({
+                    'name': file_name,
+                    'th_document_type': document_type,
+                    'th_file': file_data,
+                    'th_file_name': file_name,
+                    'th_attachment_id': att.id,
+                    'th_uploaded_by': 'company',
+                    'th_upload_date': fields.Datetime.now(),
+                    'th_user_id': current_user,
+                    'th_notes': notes or _('Thay thế tệp hợp đồng'),
+                })
+                if old_att and old_att.id != att.id:
+                    other_using_old = self.th_document_ids.filtered(
+                        lambda d: d.id != target_doc.id and d.th_attachment_id.id == old_att.id
+                    )
+                    if not other_using_old:
+                        # Dùng sudo() để xóa tệp đính kèm cũ không còn sử dụng
+                        old_att.sudo().unlink()
+            else:
+                type_docs = self.th_document_ids.filtered(lambda d: d.th_document_type == document_type)
+                if len(type_docs) == 1:
+                    # Dùng sudo() để cập nhật bản ghi tài liệu duy nhất của phân loại này
+                    type_docs[0].sudo().write({
+                        'name': file_name,
+                        'th_document_type': document_type,
+                        'th_file': file_data,
+                        'th_file_name': file_name,
+                        'th_attachment_id': att.id,
+                        'th_uploaded_by': 'company',
+                        'th_upload_date': fields.Datetime.now(),
+                        'th_user_id': current_user,
+                        'th_notes': notes or _('Thay thế tệp hợp đồng'),
+                    })
+                else:
+                    # Dùng sudo() để tạo mới tài liệu bổ sung nếu không tìm thấy bản ghi cũ phù hợp
+                    DocModel.sudo().create({
+                        'name': file_name,
+                        'th_contract_id': self.id,
+                        'th_document_type': document_type,
+                        'th_file': file_data,
+                        'th_file_name': file_name,
+                        'th_attachment_id': att.id,
+                        'th_uploaded_by': 'company',
+                        'th_upload_date': fields.Datetime.now(),
+                        'th_user_id': current_user,
+                        'th_notes': notes or _('Thay thế tệp hợp đồng'),
+                    })
+
+            self.message_post(
+                body=_('Đã thay thế tệp hợp đồng công ty cũ [%s] bằng tệp mới [%s].') % (
+                    ', '.join(old_file_names) if old_file_names else _('Chưa có'), file_name
+                )
+            )
+        else:
+            return self.th_attach_document_file(att, document_type=document_type, notes=notes, user_id=user_id)
+

@@ -5,6 +5,9 @@
         <field name="model">th.collaborator.contract.document.wizard</field>
         <field name="arch" type="xml">
             <form string="Tải lên tệp hợp đồng">
+                <div class="alert alert-info py-2 mb-3" role="alert">
+                    Lưu ý: Tên tệp tải lên bắt buộc phải chứa đúng <strong>Mã HĐ</strong> và <strong>Số điện thoại CTV</strong> theo quy chuẩn <code>[Mã HĐ]-[SĐT]-[Tên CTV]</code> để tránh nạp nhầm hợp đồng.
+                </div>
                 <group>
                     <group>
                         <field name="th_contract_id" readonly="1" options="{'no_open': True}"/>
