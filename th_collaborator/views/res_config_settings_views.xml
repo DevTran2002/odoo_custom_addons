@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Giao diện Thiết lập cấu hình module Cộng tác viên -->
+    <!-- Giao diện Thiết lập cấu hình module Hợp đồng CTV -->
     <record id="res_config_settings_view_form_inherit_collaborator" model="ir.ui.view">
         <field name="name">res.config.settings.view.form.inherit.collaborator</field>
         <field name="model">res.config.settings</field>
@@ -8,7 +8,7 @@
         <field name="inherit_id" ref="base_setup.res_config_settings_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//div[hasclass('settings')]" position="inside">
-                <div class="app_settings_block" data-string="Cộng tác viên" string="Cộng tác viên" data-key="th_collaborator">
+                <div class="app_settings_block" data-string="Hợp đồng CTV" string="Hợp đồng CTV" data-key="th_collaborator">
                     <h2>Cấu hình Email Hợp đồng Cộng tác viên</h2>
                     <div class="row mt16 o_settings_container" name="collaborator_mail_settings">
                         <div class="col-12 col-lg-6 o_setting_box">
@@ -64,9 +64,9 @@
         </field>
     </record>
 
-    <!-- Action mở màn hình Thiết lập phân hệ Cộng tác viên -->
+    <!-- Action mở màn hình Thiết lập phân hệ Hợp đồng CTV -->
     <record id="th_collaborator_config_settings_action" model="ir.actions.act_window">
-        <field name="name">Thiết lập Cộng tác viên</field>
+        <field name="name">Thiết lập Hợp đồng CTV</field>
         <field name="type">ir.actions.act_window</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
@@ -91,4 +91,3 @@
         </field>
     </record>
 </odoo>
-

@@ -5,7 +5,7 @@
         <field name="sequence">50</field>
     </record>
     <record id="th_access_collaborator_user" model="res.groups">
-        <field name="name">[Access] CTV - Quyền cơ sở</field>
+        <field name="name">[Access] Hợp đồng CTV - Quyền cơ sở</field>
         <field name="category_id" ref="base.module_category_hidden"/>
     </record>
     <record id="th_role_collaborator_officer" model="res.groups">

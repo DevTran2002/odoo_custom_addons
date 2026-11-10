@@ -4,7 +4,7 @@ from odoo.exceptions import UserError
 
 
 class ResConfigSettings(models.TransientModel):
-    """Cấu hình thiết lập hệ thống cho phân hệ Cộng tác viên."""
+    """Cấu hình thiết lập hệ thống cho phân hệ Hợp đồng CTV."""
     _inherit = 'res.config.settings'
 
     th_contract_mail_template_id = fields.Many2one(

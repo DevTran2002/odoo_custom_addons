@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
-    'name': 'TH Collaborator',
-    'summary': 'Quản lý thông tin và hợp đồng cộng tác viên (CTV) - Phase 1',
+    'name': 'Hợp đồng CTV',
+    'summary': 'Quản lý thông tin và hợp đồng cộng tác viên',
     'author': 'Sonbn, Ngoitv',
     'version': '16.0.20261105',
     'license': 'LGPL-3',

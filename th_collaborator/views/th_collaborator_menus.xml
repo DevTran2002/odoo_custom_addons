@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <menuitem id="th_collaborator_root_menu" name="Cộng tác viên" sequence="60"
+    <menuitem id="th_collaborator_root_menu" name="Hợp đồng CTV" sequence="60"
               web_icon="th_collaborator,static/description/icon.png"
               groups="th_collaborator.th_access_collaborator_user"/>
 
@@ -25,8 +25,8 @@
               groups="th_collaborator.th_role_collaborator_admin"/>
     <menuitem id="th_collaborator_mail_template_menu" name="Mẫu email" parent="th_collaborator_config_menu"
               action="th_collaborator_mail_template_action" sequence="15"
-              groups="th_collaborator.th_role_collaborator_manager"/>
+              groups="th_collaborator.th_role_collaborator_admin"/>
     <menuitem id="th_collaborator_contract_type_menu" name="Loại hợp đồng" parent="th_collaborator_config_menu"
               action="th_collaborator_contract_type_action" sequence="20"
-              groups="th_collaborator.th_role_collaborator_admin"/>
+              groups="th_collaborator.th_role_collaborator_manager"/>
 </odoo>
